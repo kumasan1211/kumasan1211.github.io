@@ -2,87 +2,55 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Scrollable Edition</title>
+    <title>Star Idle: Prestige Power</title>
     <style>
-        body { 
-            background: #000; color: #0f0; 
-            font-family: 'Segoe UI', monospace; 
-            text-align: center; margin: 0; padding: 20px; 
-            /* overflow: hidden; を削除してスクロール可能に */
-        }
-        /* 背景の星空だけを画面に固定 */
-        #star-canvas { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: -1; 
-        }
-        /* 上部の表示をスクロールしても付いてくるように固定 */
-        #top-ui {
-            position: sticky; top: 0; 
-            background: rgba(0, 0, 0, 0.85); 
-            padding: 10px 0; z-index: 100;
-            border-bottom: 1px solid #0f03;
-            backdrop-filter: blur(5px);
-        }
-        #display-container { 
-            background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; 
-            width: 85%; margin: 0 auto 10px; padding: 20px; 
-            box-shadow: 0 0 20px #0f04; 
-        }
-        #display { font-size: 3.5rem; font-weight: bold; }
-        #ps-display { font-size: 1.2rem; color: #0a0; }
-        
-        #sacrifice-container { 
-            margin: 10px auto; padding: 10px; border: 2px solid #f00; 
-            background: rgba(80, 0, 0, 0.4); max-width: 600px; 
-        }
-        .sac-btn { background: #f00; color: #fff; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; border-radius: 5px; }
-        .sac-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
-        
-        .gen-list { max-width: 750px; margin: 20px auto; padding-bottom: 50px; }
-        .gen-row { 
-            display: flex; justify-content: space-between; align-items: center; 
-            background: rgba(20, 20, 20, 0.9); margin: 8px 0; padding: 12px 20px; 
-            border: 1px solid #333; border-radius: 8px; 
-        }
+        body { background: #000; color: #0f0; font-family: 'Segoe UI', monospace; text-align: center; margin: 0; padding: 0; }
+        #star-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #top-ui { position: sticky; top: 0; background: rgba(0, 5, 15, 0.9); padding: 15px 0; z-index: 100; border-bottom: 1px solid #0f04; backdrop-filter: blur(5px); }
+        #display-container { background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; width: 85%; margin: 0 auto; padding: 15px; box-shadow: 0 0 15px #0f04; }
+        #display { font-size: 3rem; font-weight: bold; }
+        #stats-bar { font-size: 1rem; color: #0a0; margin-top: 5px; }
+        .gen-list { max-width: 750px; margin: 20px auto; padding: 0 20px 100px; }
+        .gen-row { display: flex; justify-content: space-between; align-items: center; background: rgba(20, 20, 20, 0.9); margin: 8px 0; padding: 12px 20px; border: 1px solid #333; border-radius: 8px; }
         .gen-row.flash { border-color: #fff; box-shadow: 0 0 15px #fff; transform: scale(1.02); transition: 0.1s; }
-        
-        .buy-btn { background: #222; color: #0f0; border: 1px solid #0f0; padding: 8px 15px; cursor: pointer; min-width: 120px; }
+        .action-area { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .btn-base { border: none; padding: 12px 30px; cursor: pointer; font-weight: bold; border-radius: 5px; width: 100%; max-width: 400px; transition: 0.2s; }
+        .sac-btn { background: #600; color: #f88; border: 1px solid #f00; }
+        .sac-btn:hover:not(:disabled) { background: #a00; color: #fff; box-shadow: 0 0 15px #f00; }
+        .prestige-btn { background: #004; color: #88f; border: 1px solid #00f; }
+        .prestige-btn:hover:not(:disabled) { background: #008; color: #fff; box-shadow: 0 0 15px #00f; }
+        .buy-btn { background: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 15px; cursor: pointer; min-width: 120px; }
         .buy-btn:hover:not(:disabled) { background: #0f0; color: #000; }
-        .buy-btn:disabled { border-color: #444; color: #444; }
-        
+        .btn-base:disabled, .buy-btn:disabled { background: #222; color: #444; border-color: #333; cursor: not-allowed; }
         .key-badge { background: #333; color: #fff; padding: 2px 6px; border: 1px solid #555; margin-right: 8px; font-size: 0.8rem; }
         #save-popup { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #0f0; color: #000; padding: 5px 20px; font-weight: bold; opacity: 0; transition: 0.5s; z-index: 1000; }
     </style>
 </head>
 <body>
-
     <canvas id="star-canvas"></canvas>
-    <div id="save-popup">SAVED</div>
-
-    <!-- スクロールしても隠れないエリア -->
+    <div id="save-popup">DATA SAVED</div>
     <div id="top-ui">
         <div id="display-container">
-            <div id="display">0.0</div>
-            <div id="ps-display">+0.0 / sec</div>
+            <div id="display">0.0 stars</div>
+            <div id="stats-bar">
+                <span id="ps-display">+0.0/s</span> | 
+                <span style="color:#aaf" id="prestige-power-display">Power: x1.00</span>
+            </div>
         </div>
-        
-        <div id="sacrifice-container">
-            <button class="sac-btn" id="sac-btn-main" onclick="sacrifice()">SACRIFICE (B)<br><span id="sac-bonus" style="font-size: 0.8rem;">x1.00 bonus to Gen 8</span></button>
-        </div>
-        <div style="color: #888; font-size: 0.8rem;">[1-8]:購入 | [M]:最大 | [S]:セーブ | [B]:犠牲</div>
+        <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">[1-8]:Buy | [M]:Max | [S]:Save | [B]:Sacrifice | [P]:Prestige</div>
     </div>
-
-    <!-- ここから下のリストはスクロール可能 -->
-    <div class="gen-list" id="gen-list"></div>
-    <div style="padding-bottom: 100px;"><button onclick="hardReset()" style="color:red; background:none; border:1px solid red; cursor:pointer;">完全リセット</button></div>
+    <div class="gen-list">
+        <div id="gen-list-render"></div>
+        <div class="action-area">
+            <button class="btn-base sac-btn" id="sac-btn" onclick="sacrifice()">SACRIFICE [B]<br><small id="sac-bonus">Next: x1.00 to Gen 8</small></button>
+            <button class="btn-base prestige-btn" id="prestige-btn" onclick="prestige()">PRESTIGE [P]<br><small id="prestige-info">Next: x1.00 Power</small></button>
+        </div>
+        <button onclick="hardReset()" style="color:#600; background:none; border:1px solid #300; cursor:pointer; margin-top:50px;">HARD RESET</button>
+    </div>
 
     <script>
         class BigNum {
-            constructor(mag, exp) { 
-                this.mag = isNaN(mag) ? 0 : mag; 
-                this.exp = isNaN(exp) ? 0 : exp; 
-                this.normalize(); 
-            }
+            constructor(mag, exp) { this.mag = isNaN(mag) ? 0 : mag; this.exp = isNaN(exp) ? 0 : exp; this.normalize(); }
             normalize() {
                 if (this.mag <= 1e-15) { this.mag = 0; this.exp = 0; return; }
                 let log = Math.log10(Math.abs(this.mag));
@@ -117,30 +85,101 @@
         }
 
         const config = [{base:2,m:2},{base:16,m:4},{base:512,m:8},{base:65536,m:16},{base:3.35e7,m:32},{base:6.8e10,m:64},{base:5.6e14,m:128},{base:1.8e19,m:256}];
-        let points, sacrificeMult, generators, lastUpdate = Date.now();
+        let stars, sacrificeMult, generators, permanentPower, lastUpdate = Date.now();
 
         function initData() {
-            points = new BigNum(1, 1);
+            stars = new BigNum(1, 1);
             sacrificeMult = new BigNum(1, 0);
+            if (permanentPower === undefined) permanentPower = 1.0;
             generators = config.map((c) => ({
                 amount: new BigNum(0, 0), bought: 0,
                 cost: new BigNum(c.base, 0), costMult: new BigNum(c.m, 0), prodMult: new BigNum(1, 0)
             }));
-            generators.amount = new BigNum(1, 0);
+            generators[0].amount = new BigNum(1, 0);
         }
 
+        // プレステージ計算式: (stars / 64)^0.063
+        function getPrestigeGain() {
+            if (stars.exp < 38) return 1.0;
+            // 巨大数における近似計算 (指数をベースに計算)
+            return Math.pow(stars.exp / 64, 0.063);
+        }
+
+        function prestige() {
+            let gain = getPrestigeGain();
+            if (gain <= 1.0) return;
+            permanentPower = gain; // 倍率を更新
+            initData();
+        }
+
+        function sacrifice() {
+            let bonus = getSacBonus();
+            if (bonus.exp === 0 && bonus.mag <= 1.01) return;
+            sacrificeMult = bonus;
+            for (let i = 0; i < 7; i++) {
+                generators[i].amount = new BigNum(0, 0);
+                generators[i].bought = 0;
+                generators[i].cost = new BigNum(config[i].base, 0);
+                generators[i].prodMult = new BigNum(1, 0);
+            }
+        }
+
+        function getSacBonus() {
+            let exp = generators[0].amount.exp;
+            return (exp < 10) ? new BigNum(1,0) : new BigNum(Math.pow(exp / 10, 2), 0);
+        }
+
+        function gameLoop() {
+            const now = Date.now();
+            const diff = Math.min((now - lastUpdate) / 1000, 1);
+            lastUpdate = now;
+            let currentPower = permanentPower;
+
+            for (let i = 7; i > 0; i--) {
+                let m = BigNum.copy(generators[i].prodMult).times(currentPower);
+                if (i === 7) m.times(sacrificeMult);
+                generators[i-1].amount.plus(BigNum.copy(generators[i].amount).times(m).times(diff));
+            }
+            let gain = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(currentPower);
+            stars.plus(BigNum.copy(gain).times(diff));
+            updateUI(gain, currentPower);
+        }
+
+        function updateUI(gain, currentPower) {
+            document.getElementById("display").innerText = stars.toString() + " stars";
+            document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
+            document.getElementById("prestige-power-display").innerText = `Power: x${currentPower.toFixed(4)}`;
+            
+            let sacB = getSacBonus();
+            document.getElementById("sac-bonus").innerText = `Next: x${sacB.toString()} to Gen 8`;
+            document.getElementById("sac-btn").disabled = sacB.exp === 0 && sacB.mag <= 1.01;
+            
+            let gainNext = getPrestigeGain();
+            let pBtn = document.getElementById("prestige-btn");
+            pBtn.disabled = gainNext <= 1.0;
+            document.getElementById("prestige-info").innerText = gainNext <= 1.0 ? "Require e38 stars" : `Next: x${gainNext.toFixed(4)} Power`;
+
+            generators.forEach((gen, i) => {
+                document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
+                document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
+                document.getElementById(`buy-btn-${i}`).disabled = !stars.gte(gen.cost);
+            });
+        }
+
+        // キーボード操作 & ボイラープレート
         window.addEventListener("keydown", (e) => {
             const key = e.key.toLowerCase();
-            if (key >= "1" && key <= "8") { let i = parseInt(key)-1; if(buy(i)) flashRow(i); }
+            if (key >= "1" && key <= "8") { if(buy(parseInt(key)-1)) flashRow(parseInt(key)-1); }
             if (key === "m") buyMaxAll();
             if (key === "s") saveGame(true);
             if (key === "b") sacrifice();
+            if (key === "p") prestige();
         });
 
         function buy(i) {
             let g = generators[i];
-            if (points.gte(g.cost)) {
-                points.minus(g.cost); g.amount.plus(new BigNum(1, 0)); g.bought++;
+            if (stars.gte(g.cost)) {
+                stars.minus(g.cost); g.amount.plus(new BigNum(1, 0)); g.bought++;
                 g.cost.times(g.costMult); if (g.bought % 10 === 0) g.prodMult.times(2);
                 return true;
             } return false;
@@ -149,7 +188,7 @@
         function buyMaxAll() {
             for (let i = 7; i >= 0; i--) {
                 let bought = false;
-                while (points.gte(generators[i].cost)) { buy(i); bought = true; }
+                while (stars.gte(generators[i].cost)) { buy(i); bought = true; }
                 if (bought) flashRow(i);
             }
         }
@@ -159,51 +198,12 @@
             if(el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 150); }
         }
 
-        function sacrifice() {
-            let exp = generators.amount.exp;
-            if (exp < 10) return;
-            sacrificeMult = new BigNum(Math.pow(exp / 10, 2), 0);
-            for (let i = 0; i < 7; i++) {
-                generators[i].amount = new BigNum(0, 0);
-                generators[i].bought = 0;
-                generators[i].cost = new BigNum(config[i].base, 0);
-                generators[i].prodMult = new BigNum(1, 0);
-            }
-            flashRow(7);
-        }
-
-        function gameLoop() {
-            const now = Date.now();
-            const diff = Math.min((now - lastUpdate) / 1000, 1);
-            lastUpdate = now;
-            for (let i = 7; i > 0; i--) {
-                let m = (i === 7) ? BigNum.copy(generators[i].prodMult).times(sacrificeMult) : generators[i].prodMult;
-                generators[i-1].amount.plus(BigNum.copy(generators[i].amount).times(m).times(diff));
-            }
-            let gain = BigNum.copy(generators.amount).times(generators.prodMult);
-            points.plus(BigNum.copy(gain).times(diff));
-            updateUI(gain);
-        }
-
-        function updateUI(gain) {
-            document.getElementById("display").innerText = points.toString();
-            document.getElementById("ps-display").innerText = `+${gain.toString()} / sec`;
-            let sacB = (generators.amount.exp < 10) ? new BigNum(1,0) : new BigNum(Math.pow(generators.amount.exp / 10, 2), 0);
-            document.getElementById("sac-bonus").innerText = `x${sacB.toString()} bonus to Gen 8`;
-            document.getElementById("sac-btn-main").disabled = sacB.exp === 0 && sacB.mag <= 1.01;
-            generators.forEach((gen, i) => {
-                document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
-                document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
-                document.getElementById(`buy-btn-${i}`).disabled = !points.gte(gen.cost);
-            });
-        }
-
         const canvas = document.getElementById('star-canvas');
         const ctx = canvas.getContext('2d');
         let stars_bg = [];
         function initStars() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            stars_bg = Array.from({length:100}, () => ({x:Math.random()*canvas.width, y:Math.random()*canvas.height, v:Math.random()*0.5}));
+            stars_bg = Array.from({length:80}, () => ({x:Math.random()*canvas.width, y:Math.random()*canvas.height, v:Math.random()*0.4}));
         }
         function draw() {
             ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -212,16 +212,17 @@
         }
 
         function saveGame(show) {
-            const data = { p:points, sm:sacrificeMult, g:generators, t:Date.now() };
-            localStorage.setItem("starSaveFinal_v2", JSON.stringify(data));
+            const data = { p:stars, sm:sacrificeMult, g:generators, pow:permanentPower, t:Date.now() };
+            localStorage.setItem("starSavePow", JSON.stringify(data));
             if(show){ const p=document.getElementById("save-popup"); p.style.opacity=1; setTimeout(()=>p.style.opacity=0,1000); }
         }
         function loadGame() {
-            const d = JSON.parse(localStorage.getItem("starSaveFinal_v2"));
+            const d = JSON.parse(localStorage.getItem("starSavePow"));
             if(!d) return;
             try {
-                points = new BigNum(d.p.mag, d.p.exp);
+                stars = new BigNum(d.p.mag, d.p.exp);
                 sacrificeMult = new BigNum(d.sm.mag, d.sm.exp);
+                permanentPower = d.pow || 1.0;
                 d.g.forEach((g,i) => {
                     generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
                     generators[i].bought = g.bought;
@@ -230,10 +231,10 @@
                 });
             } catch(e) { initData(); }
         }
-        function hardReset() { if(confirm("REALLY RESET?")){localStorage.clear(); location.reload();} }
+        function hardReset() { if(confirm("RESET?")){localStorage.clear(); location.reload();} }
 
         initData(); loadGame(); initStars(); draw();
-        document.getElementById("gen-list").innerHTML = generators.map((_, i) => `<div class="gen-row" id="row-${i}"><div><span class="key-badge">${i+1}</span><strong>Gen ${i+1}</strong><br><small>Amt: <span id="amt-${i}">0</span></small></div><button class="buy-btn" id="buy-btn-${i}" onclick="if(buy(${i}))flashRow(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button></div>`).join('');
+        document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => `<div class="gen-row" id="row-${i}"><div><span class="key-badge">${i+1}</span><strong>Gen ${i+1}</strong><br><small>Amt: <span id="amt-${i}">0</span></small></div><button class="buy-btn" id="buy-btn-${i}" onclick="if(buy(${i}))flashRow(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button></div>`).join('');
         window.onresize = initStars;
         setInterval(gameLoop, 50); setInterval(()=>saveGame(false), 10000);
     </script>
