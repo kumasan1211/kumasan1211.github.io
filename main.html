@@ -133,17 +133,31 @@
             const now = Date.now();
             const diff = Math.min((now - lastUpdate) / 1000, 1);
             lastUpdate = now;
-            let currentPower = permanentPower;
+            
+            let currentPower = permanentPower || 1.0;
 
+            // 1. 上位次元が下位次元を生産する (8->7, 7->6...)
             for (let i = 7; i > 0; i--) {
                 let m = BigNum.copy(generators[i].prodMult).times(currentPower);
-                if (i === 7) m.times(sacrificeMult);
-                generators[i-1].amount.plus(BigNum.copy(generators[i].amount).times(m).times(diff));
+                if (i === 7) m.times(sacrificeMult); // 第8次元のみ犠牲倍率を適用
+                
+                // 生産量 = 個数 * 倍率 * 経過時間
+                let p = BigNum.copy(generators[i].amount).times(m).times(diff);
+                generators[i-1].amount.plus(p);
             }
-            let gain = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(currentPower);
-            stars.plus(BigNum.copy(gain).times(diff));
-            updateUI(gain, currentPower);
+
+            // 2. 第1次元が Stars を生産する (ここが止まっていました)
+            // generators[0] が第1次元です
+            let gen1BaseProd = BigNum.copy(generators[0].amount).times(generators[0].prodMult);
+            let finalGainPerSec = gen1BaseProd.times(currentPower);
+            
+            // Starsに加算
+            stars.plus(BigNum.copy(finalGainPerSec).times(diff));
+            
+            // UI更新
+            updateUI(finalGainPerSec, currentPower);
         }
+
 
         function updateUI(gain, currentPower) {
             document.getElementById("display").innerText = stars.toString() + " stars";
