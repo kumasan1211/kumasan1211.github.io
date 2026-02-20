@@ -114,19 +114,19 @@ function sacrifice() {
 }
 
 function getPrestigeGain() {
-    // 星が e38 未満なら 1.0 固定
-    if (stars.exp < 38) return 1.0;
+    // 星が e30 未満なら 1.0 固定
+    if (stars.exp < 30) return 1.0;
     
-    // 計算式を調整（例: e38で約1.1倍から始まり、緩やかに上昇）
+    // 計算式を調整（例: e30で約1.1倍から始まり、緩やかに上昇）
     // 前回の permanentPower を下回らないように Math.max を使用
-    let gain = Math.pow(stars.exp / 38, 0.5); 
+    let gain = Math.pow(stars.exp / 30, 0.5); 
     return Math.max(permanentPower, gain);
 }
 
 function prestige() {
     let gain = getPrestigeGain();
     // 現在の倍率より高い数値が得られる場合のみ Prestige 可能にする
-    if (stars.exp < 38 || gain <= permanentPower) return;
+    if (stars.exp < 30 || gain <= permanentPower) return;
     
     permanentPower = gain;
     initData();
