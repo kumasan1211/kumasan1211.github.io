@@ -6,15 +6,8 @@ class BigNum {
     }
 
     normalize() {
-        if (this.mag === 0) {
-            this.exp = 0;
-            return;
-        }
-        if (Math.abs(this.mag) <= 1e-15) {
-            this.mag = 0;
-            this.exp = 0;
-            return;
-        }
+        if (this.mag === 0) { this.exp = 0; return; }
+        if (Math.abs(this.mag) <= 1e-15) { this.mag = 0; this.exp = 0; return; }
         let log = Math.log10(Math.abs(this.mag));
         let shift = Math.floor(log);
         this.exp += shift;
@@ -24,11 +17,7 @@ class BigNum {
     plus(other) {
         let diff = this.exp - other.exp;
         if (diff > 15) return this;
-        if (diff < -15) {
-            this.mag = other.mag;
-            this.exp = other.exp;
-            return this;
-        }
+        if (diff < -15) { this.mag = other.mag; this.exp = other.exp; return this; }
         this.mag = this.mag + other.mag * Math.pow(10, -diff);
         this.normalize();
         return this;
@@ -37,10 +26,7 @@ class BigNum {
     minus(other) {
         let diff = this.exp - other.exp;
         if (diff > 15) return this;
-        if (diff < -15) {
-            this.mag = 0; this.exp = 0;
-            return this;
-        }
+        if (diff < -15) { this.mag = 0; this.exp = 0; return this; }
         this.mag -= other.mag * Math.pow(10, -diff);
         if (this.mag < 0) { this.mag = 0; this.exp = 0; }
         this.normalize();
@@ -48,12 +34,8 @@ class BigNum {
     }
 
     times(num) {
-        if (num instanceof BigNum) {
-            this.mag *= num.mag;
-            this.exp += num.exp;
-        } else {
-            this.mag *= num;
-        }
+        if (num instanceof BigNum) { this.mag *= num.mag; this.exp += num.exp; }
+        else { this.mag *= num; }
         this.normalize();
         return this;
     }
@@ -69,22 +51,22 @@ class BigNum {
         return this.mag >= other.mag - 1e-10;
     }
 
-    static copy(bn) {
-        return new BigNum(bn.mag, bn.exp);
-    }
+    static copy(bn) { return new BigNum(bn.mag, bn.exp); }
 }
 
 const config = [
-    {base: 2, m: 2}, {base: 16, m: 4}, {base: 512, m: 8}, {base: 65536, m: 16},
-    {base: 3.35e7, m: 32}, {base: 6.8e10, m: 64}, {base: 5.6e14, m: 128}, {base: 1.8e19, m: 256}
+    {base:2, m:2}, {base:16, m:4}, {base:512, m:8}, {base:65536, m:16},
+    {base:3.35e7, m:32}, {base:6.8e10, m:64}, {base:5.6e14, m:128}, {base:1.8e19, m:256}
 ];
 
-let stars, generators, sacrificeMult, permanentPower, lastUpdate = Date.now(), overdrive = false;
+let stars, generators, sacrificeMult, permanentPower, boostLevel, boostMult, lastUpdate = Date.now(), overdrive = false;
 
 function initData() {
     stars = new BigNum(1, 1);
     sacrificeMult = new BigNum(1, 0);
     permanentPower = permanentPower || 1.0;
+    boostLevel = boostLevel || 0;
+    boostMult = boostMult || new BigNum(1, 0);
     generators = config.map((c) => ({
         amount: new BigNum(0, 0),
         bought: 0,
@@ -93,6 +75,21 @@ function initData() {
         prodMult: new BigNum(1, 0)
     }));
     generators[0].amount = new BigNum(1, 0);
+}
+
+// --- Boost Logic ---
+function getBoostCost() {
+    return new BigNum(1, 5 + (boostLevel * 2));
+}
+
+function buyBoost() {
+    let cost = getBoostCost();
+    if (stars.gte(cost)) {
+        stars.minus(cost);
+        boostLevel++;
+        boostMult.times(2.0); // 1回につき2倍
+        flashRow('boost');
+    }
 }
 
 function buy(i) {
@@ -111,9 +108,7 @@ function buy(i) {
 
 function buyMaxAll() {
     for (let i = 7; i >= 0; i--) {
-        while (stars.gte(generators[i].cost)) {
-            buy(i);
-        }
+        while (stars.gte(generators[i].cost)) { buy(i); }
     }
 }
 
@@ -145,7 +140,8 @@ function prestige() {
     let gain = getPrestigeGain();
     if (stars.exp < 38 || gain <= permanentPower) return;
     permanentPower = gain;
-    initData();
+    // Prestigeリセット時はBoostは維持、GenとStarsを初期化
+    initData(); 
 }
 
 function gameLoop() {
@@ -161,25 +157,37 @@ function gameLoop() {
         diff = Math.min(diff, 1.0);
     }
 
-    // 1. ジェネレーター間の生産 (階層構造)
+    let globalMult = BigNum.copy(boostMult).times(permanentPower);
+
+    // 1. ジェネレーター階層生産 (8->7->...->1)
     for (let i = 7; i > 0; i--) {
-        let p = BigNum.copy(generators[i].amount).times(generators[i].prodMult).times(permanentPower);
-        if (i === 7) p.times(sacrificeMult);
-        generators[i - 1].amount.plus(p.times(diff));
+        let genProd = BigNum.copy(generators[i].amount).times(generators[i].prodMult).times(globalMult);
+        if (i === 7) genProd.times(sacrificeMult);
+        generators[i - 1].amount.plus(genProd.times(diff));
     }
 
-    // 2. Gen 1による星の生産
-    let gainPerSec = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(permanentPower);
-    stars.plus(BigNum.copy(gainPerSec).times(diff));
+    // 2. 星の生産
+    let starGain = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(globalMult);
+    stars.plus(BigNum.copy(starGain).times(diff));
 
-    updateUI(gainPerSec);
+    updateUI(starGain);
 }
 
 function updateUI(gain) {
     document.getElementById("display").innerText = stars.toString() + " stars";
     document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
-    document.getElementById("pow-display").innerText = "Power: x" + permanentPower.toFixed(3);
+    document.getElementById("pow-display").innerText = `Power: x${permanentPower.toFixed(2)} | Boost: x${boostMult.toString()}`;
 
+    // Boost UI
+    let bCost = getBoostCost();
+    const bBtn = document.getElementById("boost-btn");
+    if(bBtn) {
+        document.getElementById("boost-level").innerText = boostLevel;
+        document.getElementById("boost-cost").innerText = bCost.toString();
+        bBtn.disabled = !stars.gte(bCost);
+    }
+
+    // Sacrifice & Prestige UI
     let sacB = getSacBonus();
     document.getElementById("sac-bonus-text").innerText = (generators[0].amount.exp < 10) ? "Require e10 Gen 1" : `Next: x${sacB.toString()} to Gen 8`;
     document.getElementById("sac-btn").disabled = (generators[0].amount.exp < 10);
@@ -188,6 +196,7 @@ function updateUI(gain) {
     document.getElementById("prestige-btn").disabled = (stars.exp < 38);
     document.getElementById("prestige-info-text").innerText = (stars.exp < 38) ? "Require e38 stars" : `Next: x${pGain.toFixed(3)} Power`;
 
+    // Generators UI
     generators.forEach((gen, i) => {
         document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
         document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
@@ -197,8 +206,11 @@ function updateUI(gain) {
 }
 
 function saveGame(show) {
-    const data = { p: stars, sm: sacrificeMult, g: generators, pow: permanentPower, t: Date.now() };
-    localStorage.setItem("starSaveUltimate_v3", JSON.stringify(data));
+    const data = { 
+        p: stars, sm: sacrificeMult, g: generators, 
+        pow: permanentPower, bl: boostLevel, bm: boostMult, t: Date.now() 
+    };
+    localStorage.setItem("starSaveUltimate_v4", JSON.stringify(data));
     if (show) {
         const p = document.getElementById("save-popup");
         if(p) { p.style.opacity = 1; setTimeout(() => p.style.opacity = 0, 1000); }
@@ -206,13 +218,15 @@ function saveGame(show) {
 }
 
 function loadGame() {
-    const saved = localStorage.getItem("starSaveUltimate_v3");
+    const saved = localStorage.getItem("starSaveUltimate_v4");
     if (!saved) return;
     try {
         const d = JSON.parse(saved);
         stars = new BigNum(d.p.mag, d.p.exp);
         sacrificeMult = new BigNum(d.sm.mag, d.sm.exp);
         permanentPower = d.pow || 1.0;
+        boostLevel = d.bl || 0;
+        boostMult = d.bm ? new BigNum(d.bm.mag, d.bm.exp) : new BigNum(1, 0);
         d.g.forEach((g, i) => {
             generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
             generators[i].bought = g.bought;
@@ -223,18 +237,20 @@ function loadGame() {
 }
 
 function flashRow(i) {
-    const el = document.getElementById(`row-${i}`);
+    const id = i === 'boost' ? 'boost-container' : `row-${i}`;
+    const el = document.getElementById(id);
     if (el) {
         el.classList.add('flash');
         setTimeout(() => el.classList.remove('flash'), 150);
     }
 }
 
-// Event Listeners
+// Input
 window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
     if (k >= "1" && k <= "8") buy(parseInt(k) - 1);
     if (k === "m") buyMaxAll();
+    if (k === "r") buyBoost();
     if (k === "s") saveGame(true);
     if (k === "b") sacrifice();
     if (k === "p") prestige();
@@ -242,11 +258,10 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => { if (e.key.toLowerCase() === "o") overdrive = false; });
 
-// Canvas Animation
+// Draw Starfield
 const canvas = document.getElementById('star-canvas');
 const ctx = canvas.getContext('2d');
 let bgStars = Array.from({ length: 80 }, () => ({ x: Math.random(), y: Math.random(), v: Math.random() * 0.0005 }));
-
 function draw() {
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -258,7 +273,7 @@ function draw() {
     requestAnimationFrame(draw);
 }
 
-// Start
+// Initialize UI and Intervals
 initData();
 loadGame();
 document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => `
@@ -273,6 +288,7 @@ document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => 
         </button>
     </div>
 `).join('');
+
 draw();
 setInterval(gameLoop, 50);
 setInterval(() => saveGame(false), 10000);
