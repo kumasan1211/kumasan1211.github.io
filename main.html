@@ -1,30 +1,90 @@
-<link rel="stylesheet" href="index.css">
-<div class="resource-container">
-    <div>You have</div>
-    <div id="points">0.00</div>
-    <div>Points</div>
-</div>
+<script>
+    class BigNum {
+        constructor(mag, exp) { this.mag = mag; this.exp = exp; this.normalize(); }
+        normalize() {
+            if (this.mag <= 0) { this.mag = 0; this.exp = 0; return; }
+            let log = Math.log10(this.mag);
+            this.exp += Math.floor(log);
+            this.mag = Math.pow(10, log - Math.floor(log));
+        }
+        plus(other) {
+            let diff = this.exp - other.exp;
+            if (diff > 15) return this;
+            if (diff < -15) { this.mag = other.mag; this.exp = other.exp; return this; }
+            this.mag = this.mag + other.mag * Math.pow(10, -diff);
+            this.normalize(); return this;
+        }
+        // コスト支払い用の簡易引き算
+        minus(other) {
+            if (this.exp > other.exp + 1) { // 桁が離れていれば無視（処理軽減）
+                return this;
+            }
+            this.mag -= other.mag * Math.pow(10, other.exp - this.exp);
+            this.normalize();
+            return this;
+        }
+        times(num) { this.mag *= num; this.normalize(); return this; }
+        toString() {
+            if (this.exp >= 100000000) return "ee" + Math.log10(this.exp).toFixed(6);
+            if (this.exp >= 100000) return "e" + Math.floor(this.exp).toLocaleString();
+            if (this.exp >= 6) return this.mag.toFixed(2) + "e" + Math.floor(this.exp);
+            return (this.mag * Math.pow(10, this.exp)).toFixed(1).toLocaleString();
+        }
+    }
 
-<div id="generators">
-    <!-- Generator 1 -->
-    <div class="gen-card">
-        <div class="gen-info">
-            <span class="gen-name">GENERATOR 1</span>
-            <span class="gen-amount" id="gen1-amount">0.00</span>
-        </div>
-        <button id="buy-gen1" onclick="buyGenerator(1)">
-            Buy: <span id="gen1-cost">10</span>
-        </button>
-    </div>
+    // --- ここで正しく初期化 ---
+    let points = new BigNum(2, 0); // 「2」という巨大数オブジェクトを作る
 
-    <!-- Generator 2 -->
-    <div class="gen-card">
-        <div class="gen-info">
-            <span class="gen-name">GENERATOR 2</span>
-            <span class="gen-amount" id="gen2-amount">0.00</span>
-        </div>
-        <button id="buy-gen2" onclick="buyGenerator(2)">
-            Buy: <span id="gen2-cost">100</span>
-        </button>
-    </div>
-</div>
+    let generators = [];
+    for (let i = 0; i < 8; i++) {
+        generators.push({
+            amount: new BigNum(i === 0 ? 1 : 0, 0),
+            cost: new BigNum(1, Math.pow(i + 1, 1.5)), // 序盤買いやすくするため少しコストを下げました
+            mult: 1.1 + (i * 0.1)
+        });
+    }
+
+    const genList = document.getElementById("gen-list");
+    generators.forEach((gen, i) => {
+        const row = document.createElement("div");
+        row.className = "gen-row";
+        row.innerHTML = `
+            <div class="gen-info">Gen ${i+1}: <span id="amt-${i}">0</span></div>
+            <button id="buy-${i}" onclick="buyGen(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button>
+        `;
+        genList.appendChild(row);
+    });
+
+    function buyGen(i) {
+        // points.exp が cost.exp 以上なら買える
+        if (points.exp >= generators[i].cost.exp) {
+            points.minus(generators[i].cost); // ちゃんとコストを引く
+            generators[i].amount.plus(new BigNum(1, 0));
+            updateUI();
+        }
+    }
+
+    function gameLoop() {
+        for (let i = 7; i > 0; i--) {
+            let production = new BigNum(generators[i].amount.mag, generators[i].amount.exp).times(generators[i].mult * 0.1);
+            generators[i-1].amount.plus(production);
+        }
+        // Gen 1 が Points を生産
+        let pProd = new BigNum(generators[0].amount.mag, generators[0].amount.exp).times(1.5 * 0.1);
+        points.plus(pProd);
+        
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById("display").innerText = points.toString();
+        generators.forEach((gen, i) => {
+            document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
+            document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
+            // ボタンの有効・無効判定
+            document.getElementById(`buy-${i}`).disabled = points.exp < gen.cost.exp;
+        });
+    }
+
+    setInterval(gameLoop, 100);
+</script>
