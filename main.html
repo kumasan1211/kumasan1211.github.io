@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Star Idle</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 20px; }
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 20px; overflow: hidden; }
         #display-container { background: #111; border: 2px solid #0f0; width: 85%; margin: 10px auto; padding: 20px; box-shadow: 0 0 15px #0f04; }
         #display { font-size: 3.5rem; font-weight: bold; }
         .gen-list { max-width: 700px; margin: 0 auto; text-align: left; }
@@ -19,9 +19,18 @@
         .can-buy { color: #ffcc00; }
         .cant-buy { color: #444; }
         .save-info { font-size: 0.8rem; color: #555; margin-top: 10px; }
+        
+        /* セーブ通知のアニメーション */
+        #save-popup {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #0f0; color: #000; padding: 10px 20px; font-weight: bold;
+            border-radius: 5px; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        }
     </style>
 </head>
 <body>
+
+    <div id="save-popup">SAVED!</div>
 
     <div id="display-container">
         <div style="color: #888; letter-spacing: 2px;">STARS</div>
@@ -29,12 +38,12 @@
     </div>
     
     <div style="margin: 10px; color: #888;">
-        [1] ～ [8] で個別購入 | <span style="color:#0f0">[M] で全ジェネレーターを最大購入</span>
+        [1]-[8]: 購入 | [M]: 最大購入 | <span style="color:#0f0">[Q]: 手動セーブ</span>
     </div>
 
     <div class="gen-list" id="gen-list"></div>
 
-    <div class="save-info">1000秒ごとにオートセーブ中... [R]キーで全データ消去</div>
+    <div class="save-info">[R]: データ全消去 (1000秒ごとにオートセーブ)</div>
 
     <script>
         class BigNum {
@@ -87,15 +96,9 @@
 
         window.addEventListener("keydown", (e) => {
             const key = e.key.toLowerCase();
-            // 1~8キーで購入
-            if (key >= "1" && key <= "8") {
-                buy(parseInt(key) - 1);
-            }
-            // Mキーで全最大購入
-            if (key === "m") {
-                buyMaxAll();
-            }
-            // Rキーでリセット
+            if (key >= "1" && key <= "8") buy(parseInt(key) - 1);
+            if (key === "m") buyMaxAll();
+            if (key === "q") saveGame(true); // 通知ありでセーブ
             if (key === "r") {
                 if (confirm("全データを消去しますか？")) {
                     localStorage.removeItem("starSaveKbd");
@@ -117,7 +120,6 @@
         }
 
         function buyMaxAll() {
-            // 上位のジェネレーターから順に買えるだけ買う
             for (let i = 7; i >= 0; i--) {
                 let g = generators[i];
                 while (points.gte(g.cost)) {
@@ -131,7 +133,7 @@
             update();
         }
 
-        function saveGame() {
+        function saveGame(showNotice = false) {
             const saveData = {
                 p: { m: points.mag, e: points.exp },
                 g: generators.map(g => ({
@@ -142,6 +144,12 @@
                 }))
             };
             localStorage.setItem("starSaveKbd", JSON.stringify(saveData));
+            
+            if (showNotice) {
+                const popup = document.getElementById("save-popup");
+                popup.style.opacity = "1";
+                setTimeout(() => { popup.style.opacity = "0"; }, 1000);
+            }
         }
 
         function loadGame() {
@@ -160,15 +168,9 @@
             const listEl = document.getElementById("gen-list");
             listEl.innerHTML = generators.map((_, i) => `
                 <div class="gen-row">
-                    <div>
-                        <span class="key-badge">${i+1}</span>
-                        <span>Gen ${i+1}</span>
-                    </div>
-                    <div id="info-${i}">
-                        Amt: 0 | Cost: 0
-                    </div>
-                </div>
-            `).join('');
+                    <div><span class="key-badge">${i+1}</span><span>Gen ${i+1}</span></div>
+                    <div id="info-${i}">Amt: 0 | Cost: 0</div>
+                </div>`).join('');
         }
 
         function gameLoop() {
@@ -184,8 +186,7 @@
             document.getElementById("display").innerText = points.toString();
             generators.forEach((gen, i) => {
                 const info = document.getElementById(`info-${i}`);
-                const canBuy = points.gte(gen.cost);
-                info.className = canBuy ? "can-buy" : "cant-buy";
+                info.className = points.gte(gen.cost) ? "can-buy" : "cant-buy";
                 info.innerText = `Amt: ${gen.amount.toString()} | Cost: ${gen.cost.toString()}`;
             });
         }
@@ -194,7 +195,7 @@
         initUI();
         loadGame();
         setInterval(gameLoop, 100);
-        setInterval(saveGame, 1000000);
+        setInterval(() => saveGame(false), 1000000);
     </script>
 </body>
 </html>
