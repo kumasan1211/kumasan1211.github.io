@@ -2,23 +2,54 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Full Fixed</title>
+    <title>Star Idle: Scrollable Edition</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Segoe UI', monospace; text-align: center; margin: 0; padding: 20px; overflow: hidden; }
-        #star-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
-        #display-container { background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; width: 85%; margin: 10px auto; padding: 20px; box-shadow: 0 0 20px #0f04; }
+        body { 
+            background: #000; color: #0f0; 
+            font-family: 'Segoe UI', monospace; 
+            text-align: center; margin: 0; padding: 20px; 
+            /* overflow: hidden; を削除してスクロール可能に */
+        }
+        /* 背景の星空だけを画面に固定 */
+        #star-canvas { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: -1; 
+        }
+        /* 上部の表示をスクロールしても付いてくるように固定 */
+        #top-ui {
+            position: sticky; top: 0; 
+            background: rgba(0, 0, 0, 0.85); 
+            padding: 10px 0; z-index: 100;
+            border-bottom: 1px solid #0f03;
+            backdrop-filter: blur(5px);
+        }
+        #display-container { 
+            background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; 
+            width: 85%; margin: 0 auto 10px; padding: 20px; 
+            box-shadow: 0 0 20px #0f04; 
+        }
         #display { font-size: 3.5rem; font-weight: bold; }
         #ps-display { font-size: 1.2rem; color: #0a0; }
-        #sacrifice-container { margin: 15px auto; padding: 15px; border: 2px solid #f00; background: rgba(80, 0, 0, 0.4); max-width: 600px; }
-        .sac-btn { background: #f00; color: #fff; border: none; padding: 12px 30px; cursor: pointer; font-weight: bold; border-radius: 5px; transition: 0.2s; }
-        .sac-btn:hover:not(:disabled) { background: #ff4444; box-shadow: 0 0 15px #f00; }
+        
+        #sacrifice-container { 
+            margin: 10px auto; padding: 10px; border: 2px solid #f00; 
+            background: rgba(80, 0, 0, 0.4); max-width: 600px; 
+        }
+        .sac-btn { background: #f00; color: #fff; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; border-radius: 5px; }
         .sac-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
-        .gen-list { max-width: 750px; margin: 0 auto; }
-        .gen-row { display: flex; justify-content: space-between; align-items: center; background: rgba(20, 20, 20, 0.9); margin: 6px 0; padding: 10px 20px; border: 1px solid #333; border-radius: 8px; transition: 0.1s; }
-        .gen-row.flash { border-color: #fff; box-shadow: 0 0 15px #fff; transform: scale(1.02); }
+        
+        .gen-list { max-width: 750px; margin: 20px auto; padding-bottom: 50px; }
+        .gen-row { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: rgba(20, 20, 20, 0.9); margin: 8px 0; padding: 12px 20px; 
+            border: 1px solid #333; border-radius: 8px; 
+        }
+        .gen-row.flash { border-color: #fff; box-shadow: 0 0 15px #fff; transform: scale(1.02); transition: 0.1s; }
+        
         .buy-btn { background: #222; color: #0f0; border: 1px solid #0f0; padding: 8px 15px; cursor: pointer; min-width: 120px; }
         .buy-btn:hover:not(:disabled) { background: #0f0; color: #000; }
         .buy-btn:disabled { border-color: #444; color: #444; }
+        
         .key-badge { background: #333; color: #fff; padding: 2px 6px; border: 1px solid #555; margin-right: 8px; font-size: 0.8rem; }
         #save-popup { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #0f0; color: #000; padding: 5px 20px; font-weight: bold; opacity: 0; transition: 0.5s; z-index: 1000; }
     </style>
@@ -28,18 +59,22 @@
     <canvas id="star-canvas"></canvas>
     <div id="save-popup">SAVED</div>
 
-    <div id="display-container">
-        <div id="display">0.0</div>
-        <div id="ps-display">+0.0 / sec</div>
-    </div>
-    
-    <div id="sacrifice-container">
-        <button class="sac-btn" id="sac-btn-main" onclick="sacrifice()">SACRIFICE (B)<br><span id="sac-bonus" style="font-size: 0.8rem;">x1.00 bonus to Gen 8</span></button>
+    <!-- スクロールしても隠れないエリア -->
+    <div id="top-ui">
+        <div id="display-container">
+            <div id="display">0.0</div>
+            <div id="ps-display">+0.0 / sec</div>
+        </div>
+        
+        <div id="sacrifice-container">
+            <button class="sac-btn" id="sac-btn-main" onclick="sacrifice()">SACRIFICE (B)<br><span id="sac-bonus" style="font-size: 0.8rem;">x1.00 bonus to Gen 8</span></button>
+        </div>
+        <div style="color: #888; font-size: 0.8rem;">[1-8]:購入 | [M]:最大 | [S]:セーブ | [B]:犠牲</div>
     </div>
 
-    <div style="margin: 10px; color: #888; font-size: 0.8rem;">[1-8]:購入 | [M]:最大 | [S]:セーブ | [B]:犠牲 | [R]:完全リセット</div>
-
+    <!-- ここから下のリストはスクロール可能 -->
     <div class="gen-list" id="gen-list"></div>
+    <div style="padding-bottom: 100px;"><button onclick="hardReset()" style="color:red; background:none; border:1px solid red; cursor:pointer;">完全リセット</button></div>
 
     <script>
         class BigNum {
@@ -91,17 +126,15 @@
                 amount: new BigNum(0, 0), bought: 0,
                 cost: new BigNum(c.base, 0), costMult: new BigNum(c.m, 0), prodMult: new BigNum(1, 0)
             }));
-            generators[0].amount = new BigNum(1, 0);
+            generators.amount = new BigNum(1, 0);
         }
 
-        // キーボード監視
         window.addEventListener("keydown", (e) => {
             const key = e.key.toLowerCase();
             if (key >= "1" && key <= "8") { let i = parseInt(key)-1; if(buy(i)) flashRow(i); }
             if (key === "m") buyMaxAll();
             if (key === "s") saveGame(true);
             if (key === "b") sacrifice();
-            if (key === "r") hardReset();
         });
 
         function buy(i) {
@@ -114,10 +147,9 @@
         }
 
         function buyMaxAll() {
-            let any = false;
             for (let i = 7; i >= 0; i--) {
                 let bought = false;
-                while (points.gte(generators[i].cost)) { buy(i); bought = true; any = true; }
+                while (points.gte(generators[i].cost)) { buy(i); bought = true; }
                 if (bought) flashRow(i);
             }
         }
@@ -128,7 +160,7 @@
         }
 
         function sacrifice() {
-            let exp = generators[0].amount.exp;
+            let exp = generators.amount.exp;
             if (exp < 10) return;
             sacrificeMult = new BigNum(Math.pow(exp / 10, 2), 0);
             for (let i = 0; i < 7; i++) {
@@ -148,7 +180,7 @@
                 let m = (i === 7) ? BigNum.copy(generators[i].prodMult).times(sacrificeMult) : generators[i].prodMult;
                 generators[i-1].amount.plus(BigNum.copy(generators[i].amount).times(m).times(diff));
             }
-            let gain = BigNum.copy(generators[0].amount).times(generators[0].prodMult);
+            let gain = BigNum.copy(generators.amount).times(generators.prodMult);
             points.plus(BigNum.copy(gain).times(diff));
             updateUI(gain);
         }
@@ -156,7 +188,7 @@
         function updateUI(gain) {
             document.getElementById("display").innerText = points.toString();
             document.getElementById("ps-display").innerText = `+${gain.toString()} / sec`;
-            let sacB = (generators[0].amount.exp < 10) ? new BigNum(1,0) : new BigNum(Math.pow(generators[0].amount.exp / 10, 2), 0);
+            let sacB = (generators.amount.exp < 10) ? new BigNum(1,0) : new BigNum(Math.pow(generators.amount.exp / 10, 2), 0);
             document.getElementById("sac-bonus").innerText = `x${sacB.toString()} bonus to Gen 8`;
             document.getElementById("sac-btn-main").disabled = sacB.exp === 0 && sacB.mag <= 1.01;
             generators.forEach((gen, i) => {
@@ -166,7 +198,6 @@
             });
         }
 
-        // 背景
         const canvas = document.getElementById('star-canvas');
         const ctx = canvas.getContext('2d');
         let stars_bg = [];
@@ -182,11 +213,11 @@
 
         function saveGame(show) {
             const data = { p:points, sm:sacrificeMult, g:generators, t:Date.now() };
-            localStorage.setItem("starSaveFinal", JSON.stringify(data));
+            localStorage.setItem("starSaveFinal_v2", JSON.stringify(data));
             if(show){ const p=document.getElementById("save-popup"); p.style.opacity=1; setTimeout(()=>p.style.opacity=0,1000); }
         }
         function loadGame() {
-            const d = JSON.parse(localStorage.getItem("starSaveFinal"));
+            const d = JSON.parse(localStorage.getItem("starSaveFinal_v2"));
             if(!d) return;
             try {
                 points = new BigNum(d.p.mag, d.p.exp);
@@ -201,14 +232,10 @@
         }
         function hardReset() { if(confirm("REALLY RESET?")){localStorage.clear(); location.reload();} }
 
-        initData();
-        loadGame();
-        initStars();
-        draw();
+        initData(); loadGame(); initStars(); draw();
         document.getElementById("gen-list").innerHTML = generators.map((_, i) => `<div class="gen-row" id="row-${i}"><div><span class="key-badge">${i+1}</span><strong>Gen ${i+1}</strong><br><small>Amt: <span id="amt-${i}">0</span></small></div><button class="buy-btn" id="buy-btn-${i}" onclick="if(buy(${i}))flashRow(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button></div>`).join('');
         window.onresize = initStars;
-        setInterval(gameLoop, 50);
-        setInterval(()=>saveGame(false), 10000);
+        setInterval(gameLoop, 50); setInterval(()=>saveGame(false), 10000);
     </script>
 </body>
 </html>
