@@ -2,44 +2,58 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Advanced Fixed</title>
+    <title>Star Ultimate v4</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <canvas id="star-canvas"></canvas>
-    <div id="save-popup">DATA SAVED</div>
-    
-    <div id="top-ui">
-        <div id="display-container">
-            <div id="display">0.00 stars</div>
-            <div id="stats-bar">
-                <span id="ps-display">+0.00/s</span> | 
-                <span id="pow-display">Power: x1.000</span>
+
+    <div id="game-container">
+        <header>
+            <h1 id="display">0.00 stars</h1>
+            <p id="ps-display">+0.00/s</p>
+            <p id="pow-display">Power: x1.00 | Boost: x1.00</p>
+        </header>
+
+        <div class="tabs">
+            <!-- Boost Section -->
+            <div id="boost-container" class="special-row">
+                <div class="info">
+                    <strong>Star Boost (Lv <span id="boost-level">0</span>)</strong>
+                    <small>全体の生産量を x2.00 します [Rキー]</small>
+                </div>
+                <button id="boost-btn" class="buy-btn" onclick="buyBoost()">
+                    Boost! (Cost: <span id="boost-cost">1.00e5</span>)
+                </button>
             </div>
-            <div id="overdrive-text">OVERDRIVE ACTIVE (x1000)</div>
+
+            <!-- Prestige / Sacrifice Section -->
+            <div class="prestige-row">
+                <button id="sac-btn" onclick="sacrifice()">
+                    Sacrifice [B]<br>
+                    <small id="sac-bonus-text">Require e10 Gen 1</small>
+                </button>
+                <button id="prestige-btn" onclick="prestige()">
+                    Prestige [P]<br>
+                    <small id="prestige-info-text">Require e38 stars</small>
+                </button>
+            </div>
         </div>
-        <div class="controls-hint">
-            [1-8]:Buy | [M]:Max | [S]:Save | [B]:Sacrifice | [P]:Prestige
+
+        <div id="gen-list-render">
+            <!-- JSで生成されます -->
         </div>
+
+        <div class="controls">
+            <button onclick="buyMaxAll()">Buy Max [M]</button>
+            <button onclick="saveGame(true)">Save [S]</button>
+            <button onclick="hardReset()" style="background:#422;">Hard Reset</button>
+        </div>
+        <p id="overdrive-text" style="color:red; display:none;">OVERDRIVE ACTIVE (x1000)</p>
     </div>
 
-    <div class="gen-list">
-        <div id="gen-list-render"></div>
-        
-        <div class="action-area">
-            <button class="btn-base sac-btn" id="sac-btn" onclick="sacrifice()">
-                SACRIFICE [B]<br>
-                <small id="sac-bonus-text">Require e10 Gen 1</small>
-            </button>
-            <button class="btn-base prestige-btn" id="prestige-btn" onclick="prestige()">
-                PRESTIGE [P]<br>
-                <small id="prestige-info-text">Require e38 stars</small>
-            </button>
-        </div>
-        
-        <button onclick="hardReset()" class="reset-btn">HARD RESET</button>
-    </div>
+    <div id="save-popup">Saved!</div>
 
-    <script src="script.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
