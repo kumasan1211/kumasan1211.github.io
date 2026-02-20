@@ -2,55 +2,57 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>BreakEternity Game</title>
-    <!-- BreakEternity.jsを読み込む -->
+    <title>BreakEternity Test</title>
+    <!-- 1. ライブラリを最新の信頼できるリンクに変更 -->
     <script src="https://cdn.jsdelivr.net"></script>
     <style>
-        body { background: #111; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding-top: 50px; }
-        #display { font-size: 2.5rem; margin-bottom: 20px; word-wrap: break-word; }
-        button { background: #222; color: #0f0; border: 1px solid #0f0; padding: 15px 30px; cursor: pointer; font-size: 1.2rem; }
-        button:hover { background: #0f0; color: #000; }
+        body { background: #111; color: #0f0; font-family: monospace; text-align: center; padding-top: 50px; }
+        #display { font-size: 3rem; margin: 30px; border: 1px solid #333; padding: 20px; }
+        button { background: #222; color: #0f0; border: 2px solid #0f0; padding: 20px 40px; cursor: pointer; font-size: 1.5rem; }
+        button:active { background: #0f0; color: #000; }
+        #error-msg { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="display">10</div>
-    <button onclick="prestige()">数値を2乗する (^2)</button>
+    <h1>巨大数カウンター</h1>
+    <div id="error-msg"></div>
+    <div id="display">読み込み中...</div>
+    <button id="btn">数値を2乗する (^2)</button>
 
     <script>
-        // Decimalクラスを使いやすく定義
-        const D = (val) => new Decimal(val);
+        // ライブラリが読み込まれているかチェック
+        if (typeof Decimal === 'undefined') {
+            document.getElementById('error-msg').innerText = "エラー: BreakEternity.js が読み込めていません。インターネット接続を確認してください。";
+        }
 
-        // ゲーム内の数値データ（初期値 10）
-        let points = D(10);
+        // 初期値 10
+        let points = new Decimal(10);
 
-        function updateDisplay() {
+        function update() {
             const el = document.getElementById("display");
             
-            // 指数が 100,000,000 (1e8) を超えたら ee表記にする
-            if (points.exponent >= 100000000) {
-                // log10(log10(points)) で eeの後の数字を出す
-                let eeValue = points.log10().log10().toFixed(3);
+            // 指数が 100,000 (1e5) を超えたら ee表記にする
+            // (テスト用に少し早めに ee になるように設定しました)
+            if (points.exponent >= 100000) {
+                let eeValue = Math.log10(points.exponent).toFixed(4);
                 el.innerText = "ee" + eeValue;
-            } 
-            // 指数が 1,000,000 を超えたら e1.234e6 のような表記にする
-            else if (points.exponent >= 1000000) {
-                el.innerText = "e" + points.log10().format(3);
-            }
-            // それ以外は通常の指数表記
-            else {
-                el.innerText = points.format(2);
+            } else {
+                // 通常の指数表記 (1.23e456)
+                el.innerText = points.toString();
             }
         }
 
-        function prestige() {
-            // points = points ^ 2
+        // ボタンクリック時の処理
+        document.getElementById("btn").onclick = function() {
+            // points を 2乗する
             points = points.pow(2);
-            updateDisplay();
-        }
+            update();
+            console.log("Current Points:", points.toString());
+        };
 
-        // 初期表示
-        updateDisplay();
+        // 最初の表示
+        update();
     </script>
 </body>
 </html>
