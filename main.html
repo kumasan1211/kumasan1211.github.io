@@ -39,14 +39,78 @@
     </div>
 
     <script>
-        class BigNum {
-            constructor(mag, exp) { this.mag = isNaN(mag) ? 0 : mag; this.exp = isNaN(exp) ? 0 : exp; this.normalize(); }
-            normalize() {
-                if (this.mag <= 1e-15) { this.mag = 0; this.exp = 0; return; }
-                let log = Math.log10(Math.abs(this.mag));
-                this.exp += Math.floor(log);
-                this.mag = Math.pow(10, log - Math.floor(log));
-            }
+// --- BigNum クラスに比較用メソッドを確実に追加 ---
+class BigNum {
+    constructor(mag, exp) { 
+        this.mag = isNaN(mag) ? 0 : mag; 
+        this.exp = isNaN(exp) ? 0 : exp; 
+        this.normalize(); 
+    }
+    normalize() {
+        if (this.mag <= 1e-15) { this.mag = 0; this.exp = 0; return; }
+        let log = Math.log10(Math.abs(this.mag));
+        this.exp += Math.floor(log);
+        this.mag = Math.pow(10, log - Math.floor(log));
+    }
+    // 比較メソッド: これが正しくないとボタンが押せません
+    gte(other) {
+        if (this.exp > other.exp) return true;
+        if (this.exp < other.exp) return false;
+        return this.mag >= other.mag - 1e-10; // 誤差を考慮
+    }
+    // 以下、plus, minus, times, toString は前回のものを維持
+}
+
+// --- プレステージ実行関数の強化 ---
+function prestige() {
+    let gain = getPrestigeGain();
+    if (gain <= 1.0001) {
+        console.log("プレステージ条件(e38)未達です");
+        return;
+    }
+    permanentPower = gain;
+    initData(); // ここで全リセット＋Gen1を1つ付与
+    console.log("Prestige Success! New Power: x" + permanentPower);
+}
+
+// --- 犠牲実行関数の強化 ---
+function sacrifice() {
+    let bonus = getSacBonus();
+    // 倍率が1.0倍より大きく、かつGen1が10桁(e10)以上あること
+    if (bonus.mag <= 1.0 && bonus.exp === 0) return;
+    
+    sacrificeMult = bonus;
+    // 第1～7次元をリセット
+    for (let i = 0; i < 7; i++) {
+        generators[i].amount = new BigNum(0, 0);
+        generators[i].bought = 0;
+        generators[i].cost = new BigNum(config[i].base, 0);
+        generators[i].prodMult = new BigNum(1, 0);
+    }
+    // 重要：犠牲後に生産が止まらないようGen1を1つ戻す
+    generators[0].amount = new BigNum(1, 0);
+    console.log("Sacrifice Success!");
+}
+
+// --- UI更新でのボタン有効化判定 ---
+function updateUI(gain, power) {
+    // プレステージボタンの判定
+    let gainNext = getPrestigeGain();
+    let pBtn = document.getElementById("prestige-btn");
+    if (pBtn) {
+        pBtn.disabled = (stars.exp < 38); // e38未満は無効
+        pBtn.innerText = `PRESTIGE [P] (Next: x${gainNext.toFixed(3)})`;
+    }
+
+    // 犠牲ボタンの判定
+    let sacB = getSacBonus();
+    let sBtn = document.getElementById("sac-btn");
+    if (sBtn) {
+        sBtn.disabled = (generators[0].amount.exp < 10); // e10未満は無効
+        document.getElementById("sac-bonus-text").innerText = `Next: x${sacB.toString()} to Gen 8`;
+    }
+}
+
             plus(other) {
                 let diff = this.exp - other.exp;
                 if (diff > 15) return this;
