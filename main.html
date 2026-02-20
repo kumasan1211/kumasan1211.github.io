@@ -2,35 +2,37 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Save Edition</title>
+    <title>Star Idle: Keyboard Edition</title>
     <style>
         body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 20px; }
-        #display-container { background: #111; border: 2px solid #0f0; width: 85%; margin: 20px auto; padding: 20px; box-shadow: 0 0 15px #0f04; }
-        #display { font-size: 3rem; font-weight: bold; }
-        .gen-row { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; margin: 8px 0; padding: 12px; border: 1px solid #333; }
-        .gen-info { text-align: left; width: 30%; }
-        .btn-group { display: flex; gap: 10px; width: 60%; justify-content: flex-end; }
-        button { background: #222; color: #0f0; border: 1px solid #0f0; padding: 8px; cursor: pointer; font-weight: bold; flex: 1; }
-        button:hover:not(:disabled) { background: #0f0; color: #000; }
-        button:disabled { border-color: #444; color: #444; cursor: not-allowed; }
-        .save-bar { margin: 20px; display: flex; justify-content: center; gap: 20px; }
-        .save-btn { background: #333; border-color: #888; color: #fff; width: 150px; }
+        #display-container { background: #111; border: 2px solid #0f0; width: 85%; margin: 10px auto; padding: 20px; box-shadow: 0 0 15px #0f04; }
+        #display { font-size: 3.5rem; font-weight: bold; }
+        .gen-list { max-width: 700px; margin: 0 auto; text-align: left; }
+        .gen-row { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: #111; margin: 5px 0; padding: 10px; border-bottom: 1px solid #222;
+        }
+        .key-badge { 
+            background: #333; color: #fff; padding: 2px 8px; border-radius: 4px; 
+            border: 1px solid #555; margin-right: 10px; font-weight: bold;
+        }
+        .can-buy { color: #ffcc00; }
+        .cant-buy { color: #444; }
+        .save-info { font-size: 0.8rem; color: #555; margin-top: 10px; }
     </style>
 </head>
 <body>
-
-    <div class="save-bar">
-        <button class="save-btn" onclick="saveGame()">セーブ</button>
-        <button class="save-btn" onclick="loadGame()">ロード</button>
-        <button class="save-btn" style="border-color: #f00; color: #f00;" onclick="hardReset()">データ全消去</button>
-    </div>
 
     <div id="display-container">
         <div style="color: #888; letter-spacing: 2px;">STARS</div>
         <div id="display">0.0</div>
     </div>
+    
+    <div style="margin: 10px; color: #888;">キーボードの [1] ～ [8] キーで購入</div>
 
-    <div id="gen-list"></div>
+    <div class="gen-list" id="gen-list"></div>
+
+    <div class="save-info">10秒ごとにオートセーブ中... [R]キーで全データ消去</div>
 
     <script>
         class BigNum {
@@ -81,75 +83,72 @@
             points = new BigNum(1, 1);
         }
 
-        // セーブ機能
-        function saveGame() {
-            const saveData = {
-                points: { mag: points.mag, exp: points.exp },
-                gens: generators.map(g => ({
-                    amount: { mag: g.amount.mag, exp: g.amount.exp },
-                    bought: g.bought,
-                    cost: { mag: g.cost.mag, exp: g.exp }, // BigNumクラスを分解
-                    cost: { mag: g.cost.mag, exp: g.cost.exp },
-                    prodMult: { mag: g.prodMult.mag, exp: g.prodMult.exp }
-                }))
-            };
-            localStorage.setItem("starIdleSave", JSON.stringify(saveData));
-            console.log("Game Saved!");
-        }
-
-        // ロード機能
-        function loadGame() {
-            const raw = localStorage.getItem("starIdleSave");
-            if (!raw) return;
-            const data = JSON.parse(raw);
-            points = new BigNum(data.points.mag, data.points.exp);
-            data.gens.forEach((g, i) => {
-                generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
-                generators[i].bought = g.bought;
-                generators[i].cost = new BigNum(g.cost.mag, g.cost.exp);
-                generators[i].prodMult = new BigNum(g.prodMult.mag, g.prodMult.exp);
-            });
-            update();
-        }
-
-        function hardReset() {
-            if (confirm("本当に全てのデータを消去しますか？")) {
-                localStorage.removeItem("starIdleSave");
-                location.reload();
+        // キーボード入力の検知
+        window.addEventListener("keydown", (e) => {
+            const key = e.key;
+            // 1~8キーで購入
+            if (key >= "1" && key <= "8") {
+                buy(parseInt(key) - 1);
             }
-        }
+            // Rキーでリセット
+            if (key.toLowerCase() === "r") {
+                if (confirm("全データを消去しますか？")) {
+                    localStorage.removeItem("starSaveKbd");
+                    location.reload();
+                }
+            }
+        });
 
-        // UIと購入ロジック (省略せず統合)
-        function initUI() {
-            const listEl = document.getElementById("gen-list");
-            listEl.innerHTML = "";
-            generators.forEach((gen, i) => {
-                listEl.innerHTML += `
-                    <div class="gen-row">
-                        <div class="gen-info">
-                            <div>Gen ${i+1}</div>
-                            <div style="font-size:0.7rem">Amt: <span id="amt-${i}">0</span></div>
-                        </div>
-                        <div class="btn-group">
-                            <button onclick="buyMax(${i}, 10)">Buy 10</button>
-                            <button onclick="buyMax(${i}, 999)">Buy Max</button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function buyMax(i, limit) {
+        function buy(i) {
             let g = generators[i];
-            let count = 0;
-            while (points.gte(g.cost) && count < limit) {
+            if (points.gte(g.cost)) {
                 points.minus(g.cost);
                 g.amount.plus(new BigNum(1, 0));
                 g.bought++;
                 g.cost.times(g.costMult);
                 if (g.bought % 10 === 0) g.prodMult.times(2);
-                count++;
+                update();
             }
-            update();
+        }
+
+        function saveGame() {
+            const saveData = {
+                p: { m: points.mag, e: points.exp },
+                g: generators.map(g => ({
+                    a: { m: g.amount.mag, e: g.amount.exp },
+                    b: g.bought,
+                    c: { m: g.cost.mag, e: g.cost.exp },
+                    pm: { m: g.prodMult.mag, e: g.prodMult.exp }
+                }))
+            };
+            localStorage.setItem("starSaveKbd", JSON.stringify(saveData));
+        }
+
+        function loadGame() {
+            const data = JSON.parse(localStorage.getItem("starSaveKbd"));
+            if (!data) return;
+            points = new BigNum(data.p.m, data.p.e);
+            data.g.forEach((g, i) => {
+                generators[i].amount = new BigNum(g.a.m, g.a.e);
+                generators[i].bought = g.b;
+                generators[i].cost = new BigNum(g.c.m, g.c.e);
+                generators[i].prodMult = new BigNum(g.pm.m, g.pm.e);
+            });
+        }
+
+        function initUI() {
+            const listEl = document.getElementById("gen-list");
+            listEl.innerHTML = generators.map((_, i) => `
+                <div class="gen-row">
+                    <div>
+                        <span class="key-badge">${i+1}</span>
+                        <span>Gen ${i+1}</span>
+                    </div>
+                    <div id="info-${i}">
+                        Amt: 0 | Cost: 0
+                    </div>
+                </div>
+            `).join('');
         }
 
         function gameLoop() {
@@ -164,15 +163,18 @@
         function update() {
             document.getElementById("display").innerText = points.toString();
             generators.forEach((gen, i) => {
-                document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
+                const info = document.getElementById(`info-${i}`);
+                const canBuy = points.gte(gen.cost);
+                info.className = canBuy ? "can-buy" : "cant-buy";
+                info.innerText = `Amt: ${gen.amount.toString()} | Cost: ${gen.cost.toString()}`;
             });
         }
 
         initData();
         initUI();
-        loadGame(); // 起動時に自動ロード
+        loadGame();
         setInterval(gameLoop, 100);
-        setInterval(saveGame, 10000); // 10秒ごとに自動セーブ
+        setInterval(saveGame, 10000);
     </script>
 </body>
 </html>
