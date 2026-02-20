@@ -73,6 +73,15 @@ function initData() {
     }));
     generators[0].amount = new BigNum(1, 0);
 }
+function getTotalBought() {
+    // すべてのジェネレーターの bought（購入数）を合計
+    return generators.reduce((sum, g) => sum + g.bought, 0);
+}
+
+function getSynergyMult() {
+    // 2^(合計購入数 / 8) を計算
+    return Math.pow(2, getTotalBought() / 8);
+}
 
 function buy(i) {
     let g = generators[i];
@@ -164,7 +173,8 @@ function gameLoop() {
         diff = Math.min(diff, 1);
     }
 
-    let pPower = permanentPower || 1.0;
+    let pPower = (permanentPower || 1.0) * getSynergyMult(); // Synergy倍率を追加
+    
     for (let i = 7; i > 0; i--) {
         let m = BigNum.copy(generators[i].prodMult).times(pPower);
         if (i === 7) m.times(sacrificeMult);
@@ -176,6 +186,12 @@ function gameLoop() {
 }
 
 function updateUI(gain, pPower) {
+        document.getElementById("display").innerText = stars.toString() + " stars";
+    document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
+    
+    // Prestige倍率とSynergy倍率を合わせた値を表示
+    document.getElementById("pow-display").innerText = `Total Power: x${pPower.toFixed(3)}`;
+    
     document.getElementById("display").innerText = stars.toString() + " stars";
     document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
     document.getElementById("pow-display").innerText = "Power: x" + pPower.toFixed(3);
@@ -192,6 +208,7 @@ function updateUI(gain, pPower) {
         document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
         document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
         document.getElementById(`buy-btn-${i}`).disabled = !stars.gte(gen.cost);
+    
     });
 }
 
