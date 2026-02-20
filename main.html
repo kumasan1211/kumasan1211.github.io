@@ -1,65 +1,29 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>Simple Incremental FE-Style</title>
-    <script src="https://cdn.jsdelivr.net"></script>
-    <style>
-        body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
-        .resource { font-size: 2em; margin-bottom: 20px; }
-        button { background: #333; color: white; border: 1px solid #666; padding: 10px; cursor: pointer; }
-        button:hover { background: #444; }
-        .gen-row { margin-bottom: 10px; }
-    </style>
-</head>
-<body>
-    <div class="resource">Points: <span id="points">0</span></div>
+<div class="resource-container">
+    <div>You have</div>
+    <div id="points">0.00</div>
+    <div>Points</div>
+</div>
 
-    <!-- ジェネレーター 1: Pointsを生産 -->
-    <div class="gen-row">
-        Generator 1: <span id="gen1-amount">0</span>
-        <button onclick="buyGenerator(1)">Buy (Cost: <span id="gen1-cost">10</span>)</button>
+<div id="generators">
+    <!-- Generator 1 -->
+    <div class="gen-card">
+        <div class="gen-info">
+            <span class="gen-name">GENERATOR 1</span>
+            <span class="gen-amount" id="gen1-amount">0.00</span>
+        </div>
+        <button id="buy-gen1" onclick="buyGenerator(1)">
+            Buy: <span id="gen1-cost">10</span>
+        </button>
     </div>
 
-    <!-- ジェネレーター 2: Generator 1を生産 -->
-    <div class="gen-row">
-        Generator 2: <span id="gen2-amount">0</span>
-        <button onclick="buyGenerator(2)">Buy (Cost: <span id="gen2-cost">100</span>)</button>
+    <!-- Generator 2 -->
+    <div class="gen-card">
+        <div class="gen-info">
+            <span class="gen-name">GENERATOR 2</span>
+            <span class="gen-amount" id="gen2-amount">0.00</span>
+        </div>
+        <button id="buy-gen2" onclick="buyGenerator(2)">
+            Buy: <span id="gen2-cost">100</span>
+        </button>
     </div>
-
-    <script>
-        // データの初期化 (Decimal型を使用)
-        let player = {
-            points: new Decimal(10),
-            gens: [
-                { amount: new Decimal(0), cost: new Decimal(10), mult: new Decimal(1.1) },
-                { amount: new Decimal(0), cost: new Decimal(100), mult: new Decimal(1.5) }
-            ]
-        };
-
-        function buyGenerator(tier) {
-            let g = player.gens[tier-1];
-            if (player.points.gte(g.cost)) {
-                player.points = player.points.minus(g.cost);
-                g.amount = g.amount.plus(1);
-                g.cost = g.cost.times(g.mult); // 買うたびに価格上昇
-            }
-        }
-
-        // メインループ (60FPS想定)
-        setInterval(() => {
-            // Gen 2 が Gen 1 を作る
-            player.gens[0].amount = player.gens[0].amount.plus(player.gens[1].amount.div(60));
-            // Gen 1 が Points を作る
-            player.points = player.points.plus(player.gens[0].amount.div(60));
-
-            // 画面更新
-            document.getElementById("points").innerText = player.points.toFixed(2);
-            document.getElementById("gen1-amount").innerText = player.gens[0].amount.toFixed(2);
-            document.getElementById("gen1-cost").innerText = player.gens[0].cost.toFixed(2);
-            document.getElementById("gen2-amount").innerText = player.gens[1].amount.toFixed(2);
-            document.getElementById("gen2-cost").innerText = player.gens[1].cost.toFixed(2);
-        }, 16);
-    </script>
-</body>
-</html>
+</div>
