@@ -2,58 +2,52 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Ultimate v4</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Idle: Enhanced</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <canvas id="star-canvas"></canvas>
+    <div id="save-popup">DATA SAVED</div>
 
-    <div id="game-container">
-        <header>
-            <h1 id="display">0.00 stars</h1>
-            <p id="ps-display">+0.00/s</p>
-            <p id="pow-display">Power: x1.00 | Boost: x1.00</p>
-        </header>
-
-        <div class="tabs">
-            <!-- Boost Section -->
-            <div id="boost-container" class="special-row">
-                <div class="info">
-                    <strong>Star Boost (Lv <span id="boost-level">0</span>)</strong>
-                    <small>全体の生産量を x2.00 します [Rキー]</small>
-                </div>
-                <button id="boost-btn" class="buy-btn" onclick="buyBoost()">
-                    Boost! (Cost: <span id="boost-cost">1.00e5</span>)
-                </button>
+    <!-- 上部固定UI -->
+    <header id="top-ui">
+        <div id="display-container">
+            <div id="display">0.00 stars</div>
+            <div id="stats-bar">
+                <span id="ps-display">+0.00/s</span> | 
+                <span id="pow-display">Prestige Power: x1.000</span>
             </div>
-
-            <!-- Prestige / Sacrifice Section -->
-            <div class="prestige-row">
-                <button id="sac-btn" onclick="sacrifice()">
-                    Sacrifice [B]<br>
-                    <small id="sac-bonus-text">Require e10 Gen 1</small>
-                </button>
-                <button id="prestige-btn" onclick="prestige()">
-                    Prestige [P]<br>
-                    <small id="prestige-info-text">Require e38 stars</small>
-                </button>
-            </div>
+            <div id="overdrive-text">OVERDRIVE ACTIVE (x1000)</div>
         </div>
+        <nav class="key-guide">
+            [1-8]:Buy | [M]:Max | [S]:Save | [B]:Sacrifice | [P]:Prestige
+        </nav>
+    </header>
 
+    <!-- メインコンテンツ -->
+    <main class="game-content">
         <div id="gen-list-render">
-            <!-- JSで生成されます -->
+            <!-- JavaScriptで動的に生成されます -->
         </div>
 
-        <div class="controls">
-            <button onclick="buyMaxAll()">Buy Max [M]</button>
-            <button onclick="saveGame(true)">Save [S]</button>
-            <button onclick="hardReset()" style="background:#422;">Hard Reset</button>
-        </div>
-        <p id="overdrive-text" style="color:red; display:none;">OVERDRIVE ACTIVE (x1000)</p>
-    </div>
+        <section class="action-area">
+            <button class="btn-base sac-btn" id="sac-btn" onclick="sacrifice()">
+                <span class="btn-label">SACRIFICE [B]</span>
+                <small id="sac-bonus-text">Require e10 Gen 1</small>
+            </button>
+            
+            <button class="btn-base prestige-btn" id="prestige-btn" onclick="prestige()">
+                <span class="btn-label">PRESTIGE [P]</span>
+                <small id="prestige-info-text">Require e30 stars</small>
+            </button>
+        </section>
 
-    <div id="save-popup">Saved!</div>
+        <footer>
+            <button onclick="hardReset()" class="reset-link">HARD RESET</button>
+        </footer>
+    </main>
 
-    <script src="main.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
