@@ -1,4 +1,30 @@
-<script>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Infinity Generator Game</title>
+    <style>
+        body { background: #000; color: #0f0; font-family: monospace; text-align: center; padding: 20px; }
+        #display { font-size: 3rem; border: 2px solid #0f0; width: 90%; margin: 20px auto; padding: 20px; background: #111; }
+        .gen-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
+        .gen-row { display: flex; justify-content: space-between; width: 80%; background: #222; padding: 10px; border: 1px solid #444; }
+        .gen-info { font-size: 1.2rem; }
+        button { background: #0f0; color: #000; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; }
+        .stats { margin-top: 20px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h1>NORMAL GENERATORS</h1>
+    <div id="display">2</div>
+    <div class="stats" id="tick-speed">Tick Speed: 100ms</div>
+
+    <div class="gen-container" id="gen-list">
+        <!-- JSでここに1〜8のジェネレーターが作られます -->
+    </div>
+
+    <script>
     class BigNum {
         constructor(mag, exp) { this.mag = mag; this.exp = exp; this.normalize(); }
         normalize() {
@@ -87,4 +113,6 @@
     }
 
     setInterval(gameLoop, 100);
-</script>
+    </script>
+</body>
+</html>
