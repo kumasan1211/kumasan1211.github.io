@@ -73,15 +73,6 @@ function initData() {
     }));
     generators[0].amount = new BigNum(1, 0);
 }
-function getTotalBought() {
-    // すべてのジェネレーターの bought（購入数）を合計
-    return generators.reduce((sum, g) => sum + g.bought, 0);
-}
-
-function getSynergyMult() {
-    // 2^(合計購入数 / 8) を計算
-    return Math.pow(2, getTotalBought() / 8);
-}
 
 function buy(i) {
     let g = generators[i];
@@ -89,8 +80,13 @@ function buy(i) {
         stars.minus(g.cost);
         g.amount.plus(new BigNum(1, 0));
         g.bought++;
+        
+        // コスト増加
         g.cost.times(g.costMult);
-        if (g.bought % 10 === 0) g.prodMult.times(2);
+        
+        // 修正：1個買うごとに1.091倍
+        g.prodMult.times(1.091); 
+        
         flashRow(i);
         return true;
     }
@@ -204,11 +200,13 @@ document.getElementById("pow-display").innerText = "Prestige Power: x" + permane
     generators.forEach((gen, i) => {
         document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
         document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
+        
+        // 修正：各Genの現在の倍率を表示 (例: x1.09)
+        document.getElementById(`mult-${i}`).innerText = "x" + gen.prodMult.toString();
+        
         document.getElementById(`buy-btn-${i}`).disabled = !stars.gte(gen.cost);
-    
     });
 }
-
 function flashRow(i) {
     const el = document.getElementById(`row-${i}`);
     if(el) {
