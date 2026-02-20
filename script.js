@@ -61,6 +61,13 @@ const config = [
 
 let stars, generators, sacrificeMult, permanentPower, boostLevel, boostMult, lastUpdate = Date.now(), overdrive = false;
 
+function hardReset() {
+    if(confirm("進行状況をすべて消去して最初からやり直しますか？")){
+        localStorage.clear();
+        location.reload();
+    }
+}
+
 function initData() {
     stars = new BigNum(1, 1);
     sacrificeMult = new BigNum(1, 0);
