@@ -1,0 +1,144 @@
+body {
+    background: #000;
+    color: #0f0;
+    font-family: 'Segoe UI', monospace;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+#star-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+}
+
+#top-ui {
+    position: sticky;
+    top: 0;
+    background: rgba(0, 5, 15, 0.9);
+    padding: 15px 0;
+    z-index: 100;
+    border-bottom: 1px solid #0f04;
+    backdrop-filter: blur(5px);
+}
+
+#display-container {
+    background: rgba(0, 10, 20, 0.8);
+    border: 2px solid #0f0;
+    width: 85%;
+    margin: 0 auto;
+    padding: 15px;
+    box-shadow: 0 0 15px #0f04;
+}
+
+#display {
+    font-size: 3.5rem;
+    font-weight: bold;
+}
+
+#stats-bar {
+    font-size: 1.1rem;
+    color: #0a0;
+    margin-top: 5px;
+}
+
+.controls-hint {
+    font-size: 0.75rem;
+    margin-top: 5px;
+    color: #888;
+}
+
+.gen-list {
+    max-width: 750px;
+    margin: 20px auto;
+    padding: 0 20px 100px;
+}
+
+.gen-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(20, 20, 20, 0.9);
+    margin: 8px 0;
+    padding: 12px 20px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    transition: 0.1s;
+}
+
+.gen-row.flash {
+    border-color: #fff !important;
+    box-shadow: 0 0 20px #fff;
+    transform: scale(1.02);
+}
+
+.action-area {
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.btn-base {
+    border: none;
+    padding: 12px 30px;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 400px;
+    transition: 0.2s;
+}
+
+.sac-btn { background: #600; color: #f88; border: 1px solid #f00; }
+.prestige-btn { background: #004; color: #88f; border: 1px solid #00f; }
+
+.buy-btn {
+    background: #111;
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 8px 15px;
+    cursor: pointer;
+    min-width: 130px;
+}
+
+.btn-base:disabled, .buy-btn:disabled {
+    background: #222;
+    color: #444;
+    border-color: #333;
+    cursor: not-allowed;
+}
+
+#overdrive-text {
+    color: #f0f;
+    font-weight: bold;
+    display: none;
+    margin-top: 5px;
+}
+
+#save-popup {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f0;
+    color: #000;
+    padding: 5px 20px;
+    font-weight: bold;
+    opacity: 0;
+    transition: 0.5s;
+    z-index: 1000;
+}
+
+.reset-btn {
+    color: #600;
+    background: none;
+    border: 1px solid #300;
+    cursor: pointer;
+    margin-top: 50px;
+}
