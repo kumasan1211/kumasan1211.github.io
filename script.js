@@ -172,14 +172,11 @@ function gameLoop() {
         document.getElementById("overdrive-text").style.display = "none";
         diff = Math.min(diff, 1);
     }
-
-    let pPower = (permanentPower || 1.0);
-    
-    for (let i = 7; i > 0; i--) {
-        let m = BigNum.copy(generators[i].prodMult).times(pPower);
-        if (i === 7) m.times(sacrificeMult);
-        generators[i-1].amount.plus(BigNum.copy(generators[i].amount).times(m).times(diff));
-    }
+let pPower = permanentPower || 1.0;
+for (let i = 7; i > 0; i--) {
+    // 個別のprodMultと、全体のpPowerを分ける
+    let m = BigNum.copy(generators[i].prodMult).times(pPower);
+    if (i === 7) m.times(sacrificeMult);
     let gain = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(pPower);
     stars.plus(BigNum.copy(gain).times(diff));
     updateUI(gain, pPower);
@@ -190,7 +187,7 @@ function updateUI(gain, pPower) {
     document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
     
     // Prestige倍率とSynergy倍率を合わせた値を表示
-    document.getElementById("pow-display").innerText = `Total Power: x${pPower.toFixed(3)}`;
+document.getElementById("pow-display").innerText = "Prestige Power: x" + permanentPower.toFixed(3);
     
     document.getElementById("display").innerText = stars.toString() + " stars";
     document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
