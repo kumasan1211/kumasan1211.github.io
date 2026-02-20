@@ -2,24 +2,20 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Overdrive</title>
+    <title>Star Idle: Core Fix</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Segoe UI', monospace; text-align: center; margin: 0; padding: 0; overflow-x: hidden; transition: background 0.5s; }
+        body { background: #000; color: #0f0; font-family: 'Segoe UI', monospace; text-align: center; margin: 0; padding: 0; overflow-x: hidden; }
         #star-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
         #top-ui { position: sticky; top: 0; background: rgba(0, 5, 15, 0.9); padding: 15px 0; z-index: 100; border-bottom: 1px solid #0f04; backdrop-filter: blur(5px); }
         #display-container { background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; width: 85%; margin: 0 auto; padding: 15px; box-shadow: 0 0 15px #0f04; }
         #display { font-size: 3.2rem; font-weight: bold; }
         #stats-bar { font-size: 1rem; color: #0a0; margin-top: 5px; }
-        #overdrive-text { color: #f0f; font-weight: bold; font-size: 1.2rem; display: none; margin-top: 5px; text-shadow: 0 0 10px #f0f; }
+        #overdrive-text { color: #f0f; font-weight: bold; display: none; }
         .gen-list { max-width: 750px; margin: 20px auto; padding: 0 20px 100px; }
         .gen-row { display: flex; justify-content: space-between; align-items: center; background: rgba(20, 20, 20, 0.9); margin: 8px 0; padding: 12px 20px; border: 1px solid #333; border-radius: 8px; }
-        .action-area { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        .btn-base { border: none; padding: 12px 30px; cursor: pointer; font-weight: bold; border-radius: 5px; width: 100%; max-width: 400px; transition: 0.2s; }
-        .prestige-btn { background: #004; color: #88f; border: 1px solid #00f; }
         .buy-btn { background: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 15px; cursor: pointer; min-width: 130px; }
-        .btn-base:disabled, .buy-btn:disabled { background: #222; color: #444; border-color: #333; cursor: not-allowed; }
-        #auto-status { color: #ffcc00; font-weight: bold; margin-top: 5px; font-size: 0.9rem; }
-        .white-out { background: #fff !important; color: #fff !important; }
+        .buy-btn:disabled { color: #444; border-color: #333; }
+        .sac-area { margin: 15px 0; padding: 10px; border: 2px solid #f00; background: #300; display: inline-block; width: 80%; max-width: 500px; }
     </style>
 </head>
 <body id="body">
@@ -27,25 +23,22 @@
     <div id="top-ui">
         <div id="display-container">
             <div id="display">0.00 stars</div>
-            <div id="stats-bar">
-                <span id="ps-display">+0.00/s</span> | 
-                <span style="color:#aaf" id="ip-display">IP: 0</span>
-            </div>
-            <div id="overdrive-text">OVERDRIVE: ACTIVE (x1000 SPEED)</div>
-            <div id="auto-status">Autobuyer: LOCKED</div>
+            <div id="stats-bar"><span id="ps-display">+0.00/s</span> | <span id="pow-display">Power: x1.000</span></div>
+            <div id="overdrive-text">OVERDRIVE ACTIVE (x1000)</div>
         </div>
-        <div style="color: #888; font-size: 0.75rem; margin-top: 5px;">[1-8]:Buy | [M]:Max | [A]:Auto | [P]:Prestige | <span style="color:#f0f">[O]:HOLD TO ACCELERATE</span></div>
+        <div style="font-size: 0.8rem; margin-top: 5px; color: #888;">[1-8]:Buy | [M]:Max | [B]:Sacrifice | [P]:Prestige | [O]:Hold to Fast</div>
     </div>
 
     <div class="gen-list">
         <div id="gen-list-render"></div>
-        <div class="action-area">
-            <button class="btn-base prestige-btn" id="prestige-btn" onclick="prestige()">PRESTIGE [P]</button>
+        <div class="sac-area">
+            <button onclick="sacrifice()" id="sac-btn" style="background:#f00; color:#fff; border:none; padding:10px 20px; font-weight:bold; cursor:pointer;">SACRIFICE [B]</button>
+            <div id="sac-bonus-text" style="font-size:0.8rem; margin-top:5px;">Next: x1.00 to Gen 8</div>
         </div>
+        <div style="margin:20px;"><button onclick="prestige()" id="prestige-btn" style="background:#00f; color:#fff; border:none; padding:15px; cursor:pointer; font-weight:bold; width:300px;">PRESTIGE [P]</button></div>
     </div>
 
     <script>
-        // --- 巨大数クラス (前回のまま) ---
         class BigNum {
             constructor(mag, exp) { this.mag = isNaN(mag) ? 0 : mag; this.exp = isNaN(exp) ? 0 : exp; this.normalize(); }
             normalize() {
@@ -82,32 +75,17 @@
         }
 
         const config = [{base:2,m:2},{base:16,m:4},{base:512,m:8},{base:65536,m:16},{base:3.35e7,m:32},{base:6.8e10,m:64},{base:5.6e14,m:128},{base:1.8e19,m:256}];
-        let stars, generators, ip, permanentPower, autoActive = false, overdrive = false, lastUpdate = Date.now();
+        let stars, generators, sacrificeMult, permanentPower, lastUpdate = Date.now(), overdrive = false;
 
         function initData() {
             stars = new BigNum(1, 1);
-            if (ip === undefined) ip = 0;
+            sacrificeMult = new BigNum(1, 0);
             if (permanentPower === undefined) permanentPower = 1.0;
             generators = config.map((c) => ({
                 amount: new BigNum(0, 0), bought: 0,
                 cost: new BigNum(c.base, 0), costMult: new BigNum(c.m, 0), prodMult: new BigNum(1, 0)
             }));
-            generators.amount = new BigNum(1, 0);
-        }
-
-        function checkInfinity() {
-            if (stars.exp >= 308 && (stars.exp > 308 || stars.mag >= 1.79)) {
-                ip += 1;
-                document.getElementById("body").classList.add("white-out");
-                setTimeout(() => { document.getElementById("body").classList.remove("white-out"); initData(); }, 500);
-            }
-        }
-
-        function prestige() {
-            let gain = stars.exp < 38 ? 1.0 : Math.pow(stars.exp / 64, 0.063);
-            if (gain <= 1.0) return;
-            permanentPower = gain;
-            initData();
+            generators[0].amount = new BigNum(1, 0); // リセット後必ず1つ持たせる
         }
 
         function buy(i) {
@@ -120,59 +98,71 @@
         }
 
         function buyMaxAll() {
-            for (let i = 7; i >= 0; i--) {
-                while (stars.gte(generators[i].cost)) { buy(i); }
-            }
+            for (let i = 7; i >= 0; i--) { while (stars.gte(generators[i].cost)) buy(i); }
         }
 
-        // キー入力監視 (Overdrive対応)
+        function sacrifice() {
+            let exp = generators[0].amount.exp;
+            if (exp < 10) return;
+            sacrificeMult = new BigNum(Math.pow(exp / 10, 2), 0);
+            for (let i = 0; i < 7; i++) {
+                generators[i].amount = new BigNum(0, 0);
+                generators[i].bought = 0;
+                generators[i].cost = new BigNum(config[i].base, 0);
+                generators[i].prodMult = new BigNum(1, 0);
+            }
+            generators[0].amount = new BigNum(1, 0); // 犠牲後もGen1は残す
+        }
+
+        function prestige() {
+            let gain = stars.exp < 38 ? 1.0 : Math.pow(stars.exp / 64, 0.063);
+            if (gain <= 1.0) return;
+            permanentPower = gain;
+            initData();
+        }
+
         window.addEventListener("keydown", (e) => {
             const k = e.key.toLowerCase();
             if (k >= "1" && k <= "8") buy(parseInt(k)-1);
             if (k === "m") buyMaxAll();
-            if (k === "a" && ip > 0) autoActive = !autoActive;
+            if (k === "b") sacrifice();
             if (k === "p") prestige();
             if (k === "o") overdrive = true;
         });
-        window.addEventListener("keyup", (e) => {
-            if (e.key.toLowerCase() === "o") overdrive = false;
-        });
+        window.addEventListener("keyup", (e) => { if (e.key === "o") overdrive = false; });
 
         function gameLoop() {
             const now = Date.now();
             let diff = (now - lastUpdate) / 1000;
             lastUpdate = now;
+            if (overdrive) { diff *= 1000; document.getElementById("overdrive-text").style.display = "block"; }
+            else { document.getElementById("overdrive-text").style.display = "none"; diff = Math.min(diff, 1); }
 
-            // [O]キーで1000倍速
-            if (overdrive) {
-                diff *= 1000;
-                document.getElementById("overdrive-text").style.display = "block";
-            } else {
-                document.getElementById("overdrive-text").style.display = "none";
-                diff = Math.min(diff, 1); // 通常時は1秒制限
-            }
-
-            if (autoActive && ip > 0) buyMaxAll();
+            let power = permanentPower || 1.0;
 
             for (let i = 7; i > 0; i--) {
-                let m = BigNum.copy(generators[i].prodMult).times(permanentPower);
+                let m = BigNum.copy(generators[i].prodMult).times(power);
+                if (i === 7) m.times(sacrificeMult);
                 generators[i-1].amount.plus(BigNum.copy(generators[i].amount).times(m).times(diff));
             }
-            let gain = BigNum.copy(generators.amount).times(generators.prodMult).times(permanentPower);
-            stars.plus(BigNum.copy(gain).times(diff));
-            
-            checkInfinity();
-            updateUI(gain);
+            let gainPerSec = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(power);
+            stars.plus(BigNum.copy(gainPerSec).times(diff));
+
+            updateUI(gainPerSec, power);
         }
 
-        function updateUI(gain) {
+        function updateUI(gain, power) {
             document.getElementById("display").innerText = stars.toString() + " stars";
             document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
-            document.getElementById("ip-display").innerText = `IP: ${ip} (Power: x${permanentPower.toFixed(3)})`;
+            document.getElementById("pow-display").innerText = "Power: x" + power.toFixed(3);
             
-            let status = document.getElementById("auto-status");
-            if (ip === 0) status.innerText = "Autobuyer: LOCKED (Reach e308)";
-            else status.innerText = "Autobuyer: " + (autoActive ? "ON" : "OFF") + " [A]";
+            let nextSac = generators[0].amount.exp < 10 ? 1 : Math.pow(generators[0].amount.exp / 10, 2);
+            document.getElementById("sac-bonus-text").innerText = `Next: x${nextSac.toFixed(2)} to Gen 8`;
+            document.getElementById("sac-btn").disabled = generators[0].amount.exp < 10;
+            
+            let nextP = stars.exp < 38 ? 1.0 : Math.pow(stars.exp / 64, 0.063);
+            document.getElementById("prestige-btn").disabled = nextP <= 1.0;
+            document.getElementById("prestige-btn").innerText = `PRESTIGE [P] (Next: x${nextP.toFixed(3)})`;
 
             generators.forEach((gen, i) => {
                 document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
@@ -181,15 +171,17 @@
             });
         }
 
+        initData();
+        document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => `<div class="gen-row"><div><strong>Gen ${i+1}</strong><br><small id="amt-${i}">0</small></div><button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button></div>`).join('');
+        setInterval(gameLoop, 50);
+
+        // 背景Canvas描画
         const canvas = document.getElementById('star-canvas');
         const ctx = canvas.getContext('2d');
-        let stars_bg = [];
-        function initStars() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; stars_bg = Array.from({length:80}, () => ({x:Math.random()*canvas.width, y:Math.random()*canvas.height, v:Math.random()*0.4})); }
-        function draw() { ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; stars_bg.forEach(s=>{ctx.fillRect(s.x,s.y,1,1); s.y=(s.y+s.v)%canvas.height;}); requestAnimationFrame(draw); }
-
-        initData(); initStars(); draw();
-        document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => `<div class="gen-row" id="row-${i}"><div><strong>Gen ${i+1}</strong><br><small id="amt-${i}">0</small></div><button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button></div>`).join('');
-        setInterval(gameLoop, 50);
+        function initStars() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        initStars();
+        function draw() { ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; for(let i=0;i<50;i++) ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height,1,1); requestAnimationFrame(draw); }
+        draw();
     </script>
 </body>
 </html>
