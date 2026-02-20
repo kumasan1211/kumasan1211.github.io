@@ -173,7 +173,7 @@ function gameLoop() {
         diff = Math.min(diff, 1);
     }
 
-    let pPower = (permanentPower || 1.0) * getSynergyMult(); // Synergy倍率を追加
+    let pPower = (permanentPower || 1.0);
     
     for (let i = 7; i > 0; i--) {
         let m = BigNum.copy(generators[i].prodMult).times(pPower);
