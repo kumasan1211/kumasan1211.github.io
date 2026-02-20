@@ -28,7 +28,9 @@
         <div id="display">0.0</div>
     </div>
     
-    <div style="margin: 10px; color: #888;">キーボードの [1] ～ [8] キーで購入</div>
+    <div style="margin: 10px; color: #888;">
+        [1] ～ [8] で個別購入 | <span style="color:#0f0">[M] で全ジェネレーターを最大購入</span>
+    </div>
 
     <div class="gen-list" id="gen-list"></div>
 
@@ -83,15 +85,18 @@
             points = new BigNum(1, 1);
         }
 
-        // キーボード入力の検知
         window.addEventListener("keydown", (e) => {
-            const key = e.key;
+            const key = e.key.toLowerCase();
             // 1~8キーで購入
             if (key >= "1" && key <= "8") {
                 buy(parseInt(key) - 1);
             }
+            // Mキーで全最大購入
+            if (key === "m") {
+                buyMaxAll();
+            }
             // Rキーでリセット
-            if (key.toLowerCase() === "r") {
+            if (key === "r") {
                 if (confirm("全データを消去しますか？")) {
                     localStorage.removeItem("starSaveKbd");
                     location.reload();
@@ -109,6 +114,21 @@
                 if (g.bought % 10 === 0) g.prodMult.times(2);
                 update();
             }
+        }
+
+        function buyMaxAll() {
+            // 上位のジェネレーターから順に買えるだけ買う
+            for (let i = 7; i >= 0; i--) {
+                let g = generators[i];
+                while (points.gte(g.cost)) {
+                    points.minus(g.cost);
+                    g.amount.plus(new BigNum(1, 0));
+                    g.bought++;
+                    g.cost.times(g.costMult);
+                    if (g.bought % 10 === 0) g.prodMult.times(2);
+                }
+            }
+            update();
         }
 
         function saveGame() {
