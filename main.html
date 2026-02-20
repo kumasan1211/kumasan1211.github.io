@@ -2,82 +2,49 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Sacrifice & Click</title>
+    <title>Star Idle: Recovery Edition</title>
     <style>
         body { background: #000; color: #0f0; font-family: 'Segoe UI', monospace; text-align: center; margin: 0; padding: 20px; overflow-x: hidden; }
         #star-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
         #display-container { background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; width: 85%; margin: 10px auto; padding: 20px; box-shadow: 0 0 20px #0f04; }
         #display { font-size: 3.5rem; font-weight: bold; }
-        
-        /* 犠牲（Sacrifice）エリア */
-        #sacrifice-container { 
-            margin: 15px auto; padding: 15px; border: 2px solid #f00; 
-            background: rgba(80, 0, 0, 0.4); max-width: 600px; 
-            box-shadow: 0 0 15px #f006;
-        }
-        .sac-btn { 
-            background: #f00; color: #fff; border: none; padding: 12px 30px; 
-            cursor: pointer; font-weight: bold; font-size: 1.1rem; border-radius: 5px;
-            transition: 0.2s;
-        }
-        .sac-btn:hover:not(:disabled) { background: #ff4444; box-shadow: 0 0 20px #f00; transform: scale(1.05); }
+        #sacrifice-container { margin: 15px auto; padding: 15px; border: 2px solid #f00; background: rgba(80, 0, 0, 0.4); max-width: 600px; }
+        .sac-btn { background: #f00; color: #fff; border: none; padding: 12px 30px; cursor: pointer; font-weight: bold; border-radius: 5px; }
         .sac-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
-        
-        /* ジェネレーターリスト */
         .gen-list { max-width: 800px; margin: 0 auto; }
-        .gen-row { 
-            display: flex; justify-content: space-between; align-items: center; 
-            background: rgba(20, 20, 20, 0.9); margin: 6px 0; padding: 10px 20px; 
-            border: 1px solid #333; border-radius: 8px;
-        }
-        .gen-row.flash { border-color: #fff !important; box-shadow: 0 0 15px #fff; transform: scale(1.02); transition: 0.1s; }
-        
-        /* 購入ボタン */
-        .buy-btn {
-            background: #222; color: #0f0; border: 1px solid #0f0; 
-            padding: 8px 15px; cursor: pointer; font-family: monospace;
-            min-width: 120px; transition: 0.2s;
-        }
-        .buy-btn:hover:not(:disabled) { background: #0f0; color: #000; }
+        .gen-row { display: flex; justify-content: space-between; align-items: center; background: rgba(20, 20, 20, 0.9); margin: 6px 0; padding: 10px 20px; border: 1px solid #333; border-radius: 8px; }
+        .buy-btn { background: #222; color: #0f0; border: 1px solid #0f0; padding: 8px 15px; cursor: pointer; min-width: 120px; }
         .buy-btn:disabled { border-color: #444; color: #444; cursor: not-allowed; }
-
-        .key-badge { background: #333; color: #fff; padding: 2px 6px; border: 1px solid #555; margin-right: 8px; font-size: 0.8rem; }
         #save-popup { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #0f0; color: #000; padding: 5px 20px; font-weight: bold; opacity: 0; transition: 0.5s; z-index: 1000; }
     </style>
 </head>
 <body>
-
     <canvas id="star-canvas"></canvas>
     <div id="save-popup">SAVED</div>
-
     <div id="display-container">
         <div id="display">0.0</div>
         <div id="ps-display" style="font-size: 1.2rem; color: #0a0;">+0.0 / sec</div>
     </div>
-    
-    <!-- 犠牲ボタンを常に表示 -->
     <div id="sacrifice-container">
-        <button class="sac-btn" id="sac-btn-main" onclick="sacrifice()">
-            SACRIFICE (B)<br>
-            <span id="sac-bonus" style="font-size: 0.8rem;">x1.00 bonus to Gen 8</span>
-        </button>
+        <button class="sac-btn" id="sac-btn-main" onclick="sacrifice()">SACRIFICE (B)<br><span id="sac-bonus" style="font-size: 0.8rem;">x1.00 bonus</span></button>
     </div>
-
-    <div style="margin: 10px; color: #888; font-size: 0.8rem; letter-spacing: 1px;">
-       [1-8]: BUY | [M]: MAX ALL | [S]: SAVE | [B]: SACRIFICE
-    </div>
-
     <div class="gen-list" id="gen-list"></div>
+    <div style="margin-top:20px;"><button onclick="hardReset()" style="color:red; background:none; border:1px solid red; cursor:pointer;">完全リセット</button></div>
 
     <script>
-        // --- 巨大数クラス ---
+        // --- 修正版：安全な巨大数クラス ---
         class BigNum {
-            constructor(mag, exp) { this.mag = mag; this.exp = exp; this.normalize(); }
+            constructor(mag, exp) { 
+                this.mag = isNaN(mag) ? 1 : mag; 
+                this.exp = isNaN(exp) ? 0 : exp; 
+                this.normalize(); 
+            }
             normalize() {
                 if (this.mag <= 1e-15) { this.mag = 0; this.exp = 0; return; }
-                let log = Math.log10(this.mag);
+                let log = Math.log10(Math.abs(this.mag));
                 this.exp += Math.floor(log);
                 this.mag = Math.pow(10, log - Math.floor(log));
+                if (isNaN(this.mag) || isNaN(this.exp)) { this.mag = 1; this.exp = 0; }
             }
             plus(other) {
                 let diff = this.exp - other.exp;
@@ -106,94 +73,50 @@
             static copy(bn) { return new BigNum(bn.mag, bn.exp); }
         }
 
-        // --- ゲーム定数 & 変数 ---
         const config = [{base:2,m:2},{base:16,m:4},{base:512,m:8},{base:65536,m:16},{base:3.35e7,m:32},{base:6.8e10,m:64},{base:5.6e14,m:128},{base:1.8e19,m:256}];
-        let points = new BigNum(1, 1);
-        let sacrificeMult = new BigNum(1, 0);
-        let generators = [];
-        let lastUpdate = Date.now();
+        let points, sacrificeMult, generators, lastUpdate = Date.now();
 
         function initData() {
+            points = new BigNum(1, 1);
+            sacrificeMult = new BigNum(1, 0);
             generators = config.map((c) => ({
                 amount: new BigNum(0, 0), bought: 0,
                 cost: new BigNum(c.base, 0), costMult: new BigNum(c.m, 0), prodMult: new BigNum(1, 0)
             }));
-            generators.amount = new BigNum(1, 0);
+            generators[0].amount = new BigNum(1, 0);
         }
 
-        // --- 犠牲ロジック ---
-        function getSacBonus() {
-            let exp = generators.amount.exp;
-            if (exp < 10) return new BigNum(1, 0);
-            return new BigNum(Math.pow(exp / 10, 2), 0);
+        function buy(i) {
+            let g = generators[i];
+            if (points.gte(g.cost)) {
+                points.minus(g.cost); g.amount.plus(new BigNum(1, 0)); g.bought++;
+                g.cost.times(g.costMult); if (g.bought % 10 === 0) g.prodMult.times(2);
+                return true;
+            } return false;
         }
 
         function sacrifice() {
-            let bonus = getSacBonus();
-            if (bonus.exp === 0 && bonus.mag <= 1.01) return;
-            if (!confirm("第1〜7ジェネレーターを犠牲にして第8を強化しますか？")) return;
-
-            sacrificeMult = bonus;
+            let exp = generators[0].amount.exp;
+            if (exp < 10) return;
+            sacrificeMult = new BigNum(Math.pow(exp / 10, 2), 0);
             for (let i = 0; i < 7; i++) {
                 generators[i].amount = new BigNum(0, 0);
                 generators[i].bought = 0;
                 generators[i].cost = new BigNum(config[i].base, 0);
                 generators[i].prodMult = new BigNum(1, 0);
             }
-            flashRow(7);
-            saveGame(false);
-        }
-
-        // --- 購入ロジック ---
-        function buy(i) {
-            let g = generators[i];
-            if (points.gte(g.cost)) {
-                points.minus(g.cost);
-                g.amount.plus(new BigNum(1, 0));
-                g.bought++;
-                g.cost.times(g.costMult);
-                if (g.bought % 10 === 0) g.prodMult.times(2);
-                return true;
-            } return false;
-        }
-
-        function buyMaxAll() {
-            let any = false;
-            for (let i = 7; i >= 0; i--) {
-                let boughtThisRow = false;
-                while (points.gte(generators[i].cost)) {
-                    buy(i); boughtThisRow = true; any = true;
-                }
-                if (boughtThisRow) flashRow(i);
-            }
-            return any;
-        }
-
-        // --- UI & 入力 ---
-        window.addEventListener("keydown", (e) => {
-            const key = e.key.toLowerCase();
-            if (key >= "1" && key <= "8") { let i = parseInt(key)-1; if(buy(i)) flashRow(i); }
-            if (key === "m") buyMaxAll();
-            if (key === "s") saveGame(true);
-            if (key === "b") sacrifice();
-        });
-
-        function flashRow(i) {
-            const el = document.getElementById(`row-${i}`);
-            el.classList.add('flash');
-            setTimeout(() => el.classList.remove('flash'), 150);
         }
 
         function gameLoop() {
             const now = Date.now();
-            const diff = (now - lastUpdate) / 1000;
+            const diff = Math.min((now - lastUpdate) / 1000, 1); // 最大1秒に制限して計算爆発を防ぐ
             lastUpdate = now;
 
             for (let i = 7; i > 0; i--) {
                 let m = (i === 7) ? BigNum.copy(generators[i].prodMult).times(sacrificeMult) : generators[i].prodMult;
                 generators[i-1].amount.plus(BigNum.copy(generators[i].amount).times(m).times(diff));
             }
-            let gain = BigNum.copy(generators.amount).times(generators.prodMult);
+            let gain = BigNum.copy(generators[0].amount).times(generators[0].prodMult);
             points.plus(BigNum.copy(gain).times(diff));
             updateUI(gain);
         }
@@ -201,12 +124,6 @@
         function updateUI(gain) {
             document.getElementById("display").innerText = points.toString();
             document.getElementById("ps-display").innerText = `+${gain.toString()} / sec`;
-            
-            let currentSacBonus = getSacBonus();
-            const sacBtn = document.getElementById("sac-btn-main");
-            sacBtn.disabled = (currentSacBonus.mag <= 1.01 && currentSacBonus.exp === 0);
-            document.getElementById("sac-bonus").innerText = `x${currentSacBonus.toString()} bonus to Gen 8`;
-
             generators.forEach((gen, i) => {
                 document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
                 document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
@@ -214,40 +131,36 @@
             });
         }
 
-        // --- 初期化 & 背景 ---
+        function saveGame() {
+            const data = { p:points, sm:sacrificeMult, g:generators };
+            localStorage.setItem("starSaveFix", JSON.stringify(data));
+        }
+
+        function loadGame() {
+            const d = JSON.parse(localStorage.getItem("starSaveFix"));
+            if(!d) return;
+            try {
+                points = new BigNum(d.p.mag, d.p.exp);
+                sacrificeMult = new BigNum(d.sm.mag, d.sm.exp);
+                d.g.forEach((g,i) => {
+                    generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
+                    generators[i].bought = g.bought;
+                    generators[i].cost = new BigNum(g.cost.mag, g.cost.exp);
+                    generators[i].prodMult = new BigNum(g.prodMult.mag, g.prodMult.exp);
+                });
+            } catch(e) { console.error("Load failed, reset to default"); initData(); }
+        }
+
+        function hardReset() { localStorage.clear(); location.reload(); }
+
         initData();
+        loadGame();
         const listEl = document.getElementById("gen-list");
         generators.forEach((_, i) => {
-            listEl.innerHTML += `
-                <div class="gen-row" id="row-${i}">
-                    <div style="text-align:left">
-                        <span class="key-badge">${i+1}</span><strong>Gen ${i+1}</strong><br>
-                        <small>Amt: <span id="amt-${i}">0</span></small>
-                    </div>
-                    <button class="buy-btn" id="buy-btn-${i}" onclick="if(buy(${i}))flashRow(${i})">
-                        Buy (Cost: <span id="cost-${i}">0</span>)
-                    </button>
-                </div>`;
+            listEl.innerHTML += `<div class="gen-row" id="row-${i}"><div><strong>Gen ${i+1}</strong><br><small>Amt: <span id="amt-${i}">0</span></small></div><button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button></div>`;
         });
-
-        // 背景Canvas (簡略)
-        const canvas = document.getElementById('star-canvas');
-        const ctx = canvas.getContext('2d');
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resize(); window.onresize = resize;
-        function draw() { ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; for(let i=0;i<50;i++) ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height,1,1); requestAnimationFrame(draw); }
-        draw();
-
-        function saveGame(s) {
-            const data = { p:{m:points.mag,e:points.exp}, sm:{m:sacrificeMult.mag,e:sacrificeMult.exp}, g:generators.map(g=>({a:{m:g.amount.mag,e:g.amount.exp},b:g.bought,c:{m:g.cost.mag,e:g.cost.exp},pm:{m:g.prodMult.mag,e:g.prodMult.exp}})) };
-            localStorage.setItem("starSaveSacClick", JSON.stringify(data));
-            if(s){ const p=document.getElementById("save-popup"); p.style.opacity=1; setTimeout(()=>p.style.opacity=0,1000); }
-        }
-        function loadGame() {
-            const d = JSON.parse(localStorage.getItem("starSaveSacClick"));
-            if(d){ points=new BigNum(d.p.m,d.p.e); sacrificeMult=new BigNum(d.sm.m,d.sm.e); d.g.forEach((g,i)=>{generators[i].amount=new BigNum(g.a.m,g.a.e); generators[i].bought=g.b; generators[i].cost=new BigNum(g.c.m,g.c.e); generators[i].prodMult=new BigNum(g.pm.m,g.pm.e);}); }
-        }
-        loadGame(); setInterval(gameLoop, 50); setInterval(()=>saveGame(false), 10000);
+        setInterval(gameLoop, 50);
+        setInterval(saveGame, 10000);
     </script>
 </body>
 </html>
