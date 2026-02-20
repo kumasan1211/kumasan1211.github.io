@@ -2,67 +2,83 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>BreakEternity 完全動作版</title>
-    <!-- ライブラリ本体を直接ここに埋め込みます（一部抜粋・簡略版ですが動作します） -->
-    <script src="https://cdn.jsdelivr.net"></script>
+    <title>オフライン完全対応版 EE-CLICKER</title>
     <style>
-        body { background: #111; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding-top: 50px; }
-        #display { font-size: 3rem; margin: 30px; border: 1px solid #0f0; padding: 20px; box-shadow: 0 0 15px #0f0; }
-        button { background: #000; color: #0f0; border: 2px solid #0f0; padding: 20px 40px; cursor: pointer; font-size: 1.5rem; transition: 0.2s; }
-        button:hover { background: #0f0; color: #000; }
-        #log { margin-top: 20px; color: #888; font-size: 0.8rem; }
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding-top: 50px; overflow: hidden; }
+        #display { font-size: 3.5rem; margin: 40px auto; border: 2px solid #0f0; width: 80%; padding: 30px; box-shadow: 0 0 20px #0f0; background: #111; }
+        button { background: #0f0; color: #000; border: none; padding: 25px 50px; cursor: pointer; font-size: 1.8rem; font-weight: bold; border-radius: 10px; box-shadow: 0 5px 0 #080; }
+        button:active { transform: translateY(4px); box-shadow: none; }
+        #info { margin-top: 30px; color: #0a0; font-size: 1rem; }
     </style>
 </head>
 <body>
 
-    <h1>EE-CLICKER v1.0</h1>
-    <div id="display">1.00e10</div>
-    <button id="mainButton">数値を2乗する (^2)</button>
-    <div id="log">Console: Ready.</div>
+    <h1>OFFLINE BIG NUMBER CLICKER</h1>
+    <div id="display">e10</div>
+    <button id="btn">数値を2乗する (^2)</button>
+    <div id="info">指数(exponent)が 100,000,000 を超えると ee表記になります</div>
 
     <script>
-        // ライブラリが読み込めていない場合の予備処理
-        window.onload = function() {
-            if (typeof Decimal === 'undefined') {
-                document.getElementById('display').innerHTML = "<span style='color:red'>ライブラリ読込失敗</span>";
-                document.getElementById('log').innerText = "CDNからの読み込みに失敗しました。ネット接続を確認してください。";
-                return;
+        /**
+         * 外部非依存：超簡易版 BigNumber クラス
+         * (BreakEternityの挙動を模した簡易実装)
+         */
+        class SimpleDecimal {
+            constructor(mag, exp) {
+                this.mag = mag; // 仮数 (例: 1.23)
+                this.exp = exp; // 指数 (例: 1000)
+                this.normalize();
             }
 
-            // --- ゲームのメイン処理 ---
-            let points = new Decimal(10); // 初期値 10
+            normalize() {
+                if (this.mag >= 10) {
+                    this.mag = Math.log10(this.mag);
+                    this.exp += 1;
+                }
+                if (this.mag === 0) return;
+                while (this.mag >= 10) { this.mag /= 10; this.exp++; }
+                while (this.mag < 1 && this.mag > 0) { this.mag *= 10; this.exp--; }
+            }
 
-            const displayEl = document.getElementById("display");
-            const btn = document.getElementById("mainButton");
-            const logEl = document.getElementById("log");
+            // 2乗の計算
+            pow2() {
+                // (m * 10^e)^2 = m^2 * 10^(2e)
+                this.mag = Math.pow(this.mag, 2);
+                this.exp = this.exp * 2;
+                this.normalize();
+            }
 
-            function updateDisplay() {
-                // 指数が 100,000,000 (1e8) を超えたら ee表記にする
-                if (points.exponent >= 100000000) {
-                    let ee = Math.log10(points.exponent).toFixed(6);
-                    displayEl.innerText = "ee" + ee;
+            toString() {
+                // ee表記の判定 (指数が1億を超えたら)
+                if (this.exp >= 100000000) {
+                    return "ee" + Math.log10(this.exp).toFixed(6);
                 } 
-                // 指数が 100,000 を超えたら e...e... 表記
-                else if (points.exponent >= 100000) {
-                    displayEl.innerText = "e" + points.exponent.toLocaleString();
+                // e...e... 表記 (指数が10万を超えたら)
+                if (this.exp >= 100000) {
+                    return "e" + this.exp.toLocaleString();
                 }
-                // それ以外は通常の指数表記
-                else {
-                    displayEl.innerText = points.toString();
-                }
-                logEl.innerText = "Current Exponent: " + points.exponent;
+                return "e" + Math.floor(this.exp);
             }
+        }
 
-            btn.onclick = function() {
-                // 数値を2乗（pow(2)）する
-                points = points.pow(2);
-                updateDisplay();
-                console.log("Success! Points are now:", points.toString());
-            };
+        // --- ゲームの実行部分 ---
+        let points = new SimpleDecimal(1, 10); // 初期値 e10
+        const displayEl = document.getElementById("display");
+        const btn = document.getElementById("btn");
 
-            // 初回表示
-            updateDisplay();
+        function render() {
+            displayEl.innerText = points.toString();
+        }
+
+        btn.onclick = function() {
+            points.pow2();
+            render();
+            // ログ出力
+            console.log("計算成功:", points.toString());
         };
+
+        // 初期描画
+        render();
     </script>
 </body>
 </html>
