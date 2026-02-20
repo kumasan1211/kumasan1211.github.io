@@ -2,50 +2,86 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle</title>
+    <title>Star Idle: Visual Overdrive</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 20px; overflow: hidden; }
-        #display-container { background: #111; border: 2px solid #0f0; width: 85%; margin: 10px auto; padding: 20px; box-shadow: 0 0 15px #0f04; }
-        #display { font-size: 3.5rem; font-weight: bold; }
-        .gen-list { max-width: 700px; margin: 0 auto; text-align: left; }
+        body { 
+            background: #000; color: #0f0; 
+            font-family: 'Segoe UI', 'Courier New', monospace; 
+            text-align: center; margin: 0; padding: 20px; 
+            overflow: hidden; user-select: none;
+        }
+        /* 背景キャンバス */
+        #star-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; pointer-events: none;
+        }
+        /* メインディスプレイ */
+        #display-container { 
+            background: rgba(0, 20, 40, 0.7); 
+            border: 2px solid #0f0; 
+            width: 85%; margin: 10px auto; padding: 25px; 
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
+            backdrop-filter: blur(5px);
+            transition: border-color 0.5s, box-shadow 0.5s;
+        }
+        #display { 
+            font-size: 4rem; font-weight: bold; 
+            transition: color 0.5s; text-shadow: 0 0 15px currentColor;
+        }
+        #ps-display { font-size: 1.3rem; opacity: 0.8; margin-top: 10px; }
+        
+        /* ジェネレーターリスト */
+        .gen-list { max-width: 750px; margin: 20px auto; position: relative; z-index: 1; }
         .gen-row { 
             display: flex; justify-content: space-between; align-items: center; 
-            background: #111; margin: 5px 0; padding: 10px; border-bottom: 1px solid #222;
+            background: rgba(20, 20, 20, 0.8); margin: 6px 0; padding: 12px 20px; 
+            border: 1px solid #333; border-radius: 8px;
+            transition: transform 0.1s, box-shadow 0.3s, border-color 0.3s;
+        }
+        /* 購入時の光る演出 */
+        .gen-row.flash { 
+            border-color: #fff !important; 
+            box-shadow: 0 0 20px #fff;
+            transform: scale(1.02);
         }
         .key-badge { 
-            background: #333; color: #fff; padding: 2px 8px; border-radius: 4px; 
-            border: 1px solid #555; margin-right: 10px; font-weight: bold;
+            background: #222; color: #0f0; padding: 4px 10px; border-radius: 4px; 
+            border: 1px solid #0f0; margin-right: 15px; font-weight: bold;
+            box-shadow: 0 0 5px #0f0;
         }
-        .can-buy { color: #ffcc00; }
-        .cant-buy { color: #444; }
-        .save-info { font-size: 0.8rem; color: #555; margin-top: 10px; }
+        .can-buy { color: #0f0; text-shadow: 0 0 5px #0f0; }
+        .cant-buy { color: #444; text-shadow: none; }
         
-        /* セーブ通知のアニメーション */
-        #save-popup {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #0f0; color: #000; padding: 10px 20px; font-weight: bold;
-            border-radius: 5px; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        /* 通知系 */
+        .save-info { font-size: 0.9rem; color: #666; margin-top: 20px; }
+        #save-popup { 
+            position: fixed; top: 10%; left: 50%; transform: translateX(-50%); 
+            background: #fff; color: #000; padding: 10px 30px; 
+            font-weight: bold; border-radius: 50px; opacity: 0; 
+            transition: 0.4s; z-index: 1000; box-shadow: 0 0 20px #fff;
         }
     </style>
 </head>
 <body>
 
-    <div id="save-popup">SAVED!</div>
+    <canvas id="star-canvas"></canvas>
+    <div id="save-popup">DATA SYNCHRONIZED</div>
 
     <div id="display-container">
-        <div style="color: #888; letter-spacing: 2px;">STARS</div>
+        <div style="font-size: 0.8rem; letter-spacing: 5px; color: #aaa;">UNIVERSAL STARS</div>
         <div id="display">0.0</div>
+        <div id="ps-display">+0.0 / sec</div>
     </div>
     
-    <div style="margin: 10px; color: #888;">
-        [1]-[8]: 購入 | [M]: 最大購入 | <span style="color:#0f0">[Q]: 手動セーブ</span>
+    <div style="margin: 15px; color: #888; font-size: 0.9rem; letter-spacing: 1px;">
+       [1-8]: PURCHASE | [M]: MAX ALL | [S]: SAVE
     </div>
 
     <div class="gen-list" id="gen-list"></div>
-
-    <div class="save-info">[R]: データ全消去 (1000秒ごとにオートセーブ)</div>
+    <div class="save-info">SYSTEMS OPERATIONAL // [R] FOR HARD RESET</div>
 
     <script>
+        // --- 巨大数クラス ---
         class BigNum {
             constructor(mag, exp) { this.mag = mag; this.exp = exp; this.normalize(); }
             normalize() {
@@ -81,7 +117,40 @@
             static copy(bn) { return new BigNum(bn.mag, bn.exp); }
         }
 
+        // --- 背景演出 (Canvas) ---
+        const canvas = document.getElementById('star-canvas');
+        const ctx = canvas.getContext('2d');
+        let stars_bg = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.onresize = resize;
+        resize();
+
+        for(let i=0; i<200; i++) {
+            stars_bg.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2, v: Math.random()*0.5 });
+        }
+
+        function drawStars() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = '#fff';
+            stars_bg.forEach(s => {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.s, 0, Math.PI*2);
+                ctx.fill();
+                s.y += s.v;
+                if(s.y > canvas.height) s.y = 0;
+            });
+            requestAnimationFrame(drawStars);
+        }
+        drawStars();
+
+        // --- ゲーム論理 ---
         let points = new BigNum(1, 1);
+        let lastUpdate = Date.now();
         const config = [{base:2,m:2},{base:16,m:4},{base:512,m:8},{base:65536,m:16},{base:3.35e7,m:32},{base:6.8e10,m:64},{base:5.6e14,m:128},{base:1.8e19,m:256}];
         let generators = [];
 
@@ -91,111 +160,102 @@
                 cost: new BigNum(c.base, 0), costMult: new BigNum(c.m, 0), prodMult: new BigNum(1, 0)
             }));
             generators[0].amount = new BigNum(1, 0);
-            points = new BigNum(1, 1);
         }
 
         window.addEventListener("keydown", (e) => {
             const key = e.key.toLowerCase();
-            if (key >= "1" && key <= "8") buy(parseInt(key) - 1);
-            if (key === "m") buyMaxAll();
-            if (key === "q") saveGame(true); // 通知ありでセーブ
-            if (key === "r") {
-                if (confirm("全データを消去しますか？")) {
-                    localStorage.removeItem("starSaveKbd");
-                    location.reload();
-                }
+            if (key >= "1" && key <= "8") {
+                const idx = parseInt(key) - 1;
+                if (buy(idx)) flashRow(idx);
             }
+            if (key === "m") {
+                buyMaxAll();
+                for(let i=0; i<8; i++) flashRow(i);
+            }
+            if (key === "s") saveGame(true);
+            if (key === "r") { if(confirm("RESET ALL DATA?")) { localStorage.removeItem("starSaveVis"); location.reload(); } }
         });
+
+        function flashRow(i) {
+            const el = document.getElementById(`row-${i}`);
+            el.classList.add('flash');
+            setTimeout(() => el.classList.remove('flash'), 150);
+        }
 
         function buy(i) {
             let g = generators[i];
             if (points.gte(g.cost)) {
-                points.minus(g.cost);
-                g.amount.plus(new BigNum(1, 0));
-                g.bought++;
-                g.cost.times(g.costMult);
-                if (g.bought % 10 === 0) g.prodMult.times(2);
-                update();
+                points.minus(g.cost); g.amount.plus(new BigNum(1, 0)); g.bought++;
+                g.cost.times(g.costMult); if (g.bought % 10 === 0) g.prodMult.times(2);
+                return true;
             }
+            return false;
         }
 
         function buyMaxAll() {
             for (let i = 7; i >= 0; i--) {
                 let g = generators[i];
                 while (points.gte(g.cost)) {
-                    points.minus(g.cost);
-                    g.amount.plus(new BigNum(1, 0));
-                    g.bought++;
-                    g.cost.times(g.costMult);
-                    if (g.bought % 10 === 0) g.prodMult.times(2);
+                    points.minus(g.cost); g.amount.plus(new BigNum(1, 0)); g.bought++;
+                    g.cost.times(g.costMult); if (g.bought % 10 === 0) g.prodMult.times(2);
                 }
             }
-            update();
-        }
-
-        function saveGame(showNotice = false) {
-            const saveData = {
-                p: { m: points.mag, e: points.exp },
-                g: generators.map(g => ({
-                    a: { m: g.amount.mag, e: g.amount.exp },
-                    b: g.bought,
-                    c: { m: g.cost.mag, e: g.cost.exp },
-                    pm: { m: g.prodMult.mag, e: g.prodMult.exp }
-                }))
-            };
-            localStorage.setItem("starSaveKbd", JSON.stringify(saveData));
-            
-            if (showNotice) {
-                const popup = document.getElementById("save-popup");
-                popup.style.opacity = "1";
-                setTimeout(() => { popup.style.opacity = "0"; }, 1000);
-            }
-        }
-
-        function loadGame() {
-            const data = JSON.parse(localStorage.getItem("starSaveKbd"));
-            if (!data) return;
-            points = new BigNum(data.p.m, data.p.e);
-            data.g.forEach((g, i) => {
-                generators[i].amount = new BigNum(g.a.m, g.a.e);
-                generators[i].bought = g.b;
-                generators[i].cost = new BigNum(g.c.m, g.c.e);
-                generators[i].prodMult = new BigNum(g.pm.m, g.pm.e);
-            });
-        }
-
-        function initUI() {
-            const listEl = document.getElementById("gen-list");
-            listEl.innerHTML = generators.map((_, i) => `
-                <div class="gen-row">
-                    <div><span class="key-badge">${i+1}</span><span>Gen ${i+1}</span></div>
-                    <div id="info-${i}">Amt: 0 | Cost: 0</div>
-                </div>`).join('');
         }
 
         function gameLoop() {
+            const now = Date.now();
+            const diff = (now - lastUpdate) / 1000;
+            lastUpdate = now;
+
             for (let i = 7; i > 0; i--) {
-                let p = BigNum.copy(generators[i].amount).times(generators[i].prodMult).times(0.1);
+                let p = BigNum.copy(generators[i].amount).times(generators[i].prodMult).times(diff);
                 generators[i-1].amount.plus(p);
             }
-            points.plus(BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(0.1));
-            update();
+            let currentGain = BigNum.copy(generators[0].amount).times(generators[0].prodMult);
+            points.plus(BigNum.copy(currentGain).times(diff));
+            
+            updateVisuals(currentGain);
         }
 
-        function update() {
-            document.getElementById("display").innerText = points.toString();
+        function updateVisuals(gain) {
+            const disp = document.getElementById("display");
+            const cont = document.getElementById("display-container");
+            disp.innerText = points.toString();
+            document.getElementById("ps-display").innerText = `+${gain.toString()} / sec`;
+
+            // 桁数に応じた色変化 (青 -> 緑 -> 黄 -> 赤 -> 紫)
+            const hue = Math.min(300, (points.exp / 100) * 60 + 120); 
+            const color = `hsl(${hue}, 100%, 50%)`;
+            disp.style.color = color;
+            cont.style.borderColor = color;
+            cont.style.boxShadow = `0 0 30px ${color}44`;
+
             generators.forEach((gen, i) => {
                 const info = document.getElementById(`info-${i}`);
-                info.className = points.gte(gen.cost) ? "can-buy" : "cant-buy";
+                const canBuy = points.gte(gen.cost);
+                info.className = canBuy ? "can-buy" : "cant-buy";
                 info.innerText = `Amt: ${gen.amount.toString()} | Cost: ${gen.cost.toString()}`;
             });
         }
 
+        function saveGame(show) {
+            const data = { p:{m:points.mag,e:points.exp}, g:generators.map(g=>({a:{m:g.amount.mag,e:g.amount.exp},b:g.bought,c:{m:g.cost.mag,e:g.cost.exp},pm:{m:g.prodMult.mag,e:g.prodMult.exp}})), t:Date.now() };
+            localStorage.setItem("starSaveVis", JSON.stringify(data));
+            if(show) { const p=document.getElementById("save-popup"); p.style.opacity=1; setTimeout(()=>p.style.opacity=0,1000); }
+        }
+
+        function loadGame() {
+            const d = JSON.parse(localStorage.getItem("starSaveVis"));
+            if(!d) return;
+            points = new BigNum(d.p.m, d.p.e);
+            d.g.forEach((g,i) => { generators[i].amount=new BigNum(g.a.m,g.a.e); generators[i].bought=g.b; generators[i].cost=new BigNum(g.c.m,g.c.e); generators[i].prodMult=new BigNum(g.pm.m,g.pm.e); });
+        }
+
         initData();
-        initUI();
         loadGame();
-        setInterval(gameLoop, 100);
-        setInterval(() => saveGame(false), 1000000);
+        document.getElementById("gen-list").innerHTML = generators.map((_, i) => `<div class="gen-row" id="row-${i}"><div><span class="key-badge">${i+1}</span>Gen ${i+1}</div><div id="info-${i}"></div></div>`).join('');
+        setInterval(gameLoop, 50);
+        setInterval(()=>saveGame(false), 10000);
     </script>
 </body>
 </html>
