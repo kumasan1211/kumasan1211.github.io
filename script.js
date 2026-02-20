@@ -270,8 +270,14 @@ initData();
 loadGame();
 document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => `
     <div class="gen-row" id="row-${i}">
-        <div><span class="key-badge">${i+1}</span><strong>Gen ${i+1}</strong><br><small id="amt-${i}">0</small></div>
-        <button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button>
+        <div>
+            <span class="key-badge">${i+1}</span>
+            <strong>Gen ${i+1}</strong> <span id="mult-${i}" style="color:#0af; font-size:0.8rem;">x1.00</span><br>
+            <small id="amt-${i}">0</small>
+        </div>
+        <button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">
+            Buy (Cost: <span id="cost-${i}">0</span>)
+        </button>
     </div>
 `).join('');
 
