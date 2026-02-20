@@ -2,83 +2,112 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>オフライン完全対応版 EE-CLICKER</title>
+    <title>Infinity Generator Game</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding-top: 50px; overflow: hidden; }
-        #display { font-size: 3.5rem; margin: 40px auto; border: 2px solid #0f0; width: 80%; padding: 30px; box-shadow: 0 0 20px #0f0; background: #111; }
-        button { background: #0f0; color: #000; border: none; padding: 25px 50px; cursor: pointer; font-size: 1.8rem; font-weight: bold; border-radius: 10px; box-shadow: 0 5px 0 #080; }
-        button:active { transform: translateY(4px); box-shadow: none; }
-        #info { margin-top: 30px; color: #0a0; font-size: 1rem; }
+        body { background: #000; color: #0f0; font-family: monospace; text-align: center; padding: 20px; }
+        #display { font-size: 3rem; border: 2px solid #0f0; width: 90%; margin: 20px auto; padding: 20px; background: #111; }
+        .gen-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
+        .gen-row { display: flex; justify-content: space-between; width: 80%; background: #222; padding: 10px; border: 1px solid #444; }
+        .gen-info { font-size: 1.2rem; }
+        button { background: #0f0; color: #000; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; }
+        .stats { margin-top: 20px; color: #aaa; }
     </style>
 </head>
 <body>
 
-    <h1>OFFLINE BIG NUMBER CLICKER</h1>
+    <h1>NORMAL GENERATORS</h1>
     <div id="display">e10</div>
-    <button id="btn">数値を2乗する (^2)</button>
-    <div id="info">指数(exponent)が 100,000,000 を超えると ee表記になります</div>
+    <div class="stats" id="tick-speed">Tick Speed: 100ms</div>
+
+    <div class="gen-container" id="gen-list">
+        <!-- JSでここに1〜8のジェネレーターが作られます -->
+    </div>
 
     <script>
-        /**
-         * 外部非依存：超簡易版 BigNumber クラス
-         * (BreakEternityの挙動を模した簡易実装)
-         */
-        class SimpleDecimal {
-            constructor(mag, exp) {
-                this.mag = mag; // 仮数 (例: 1.23)
-                this.exp = exp; // 指数 (例: 1000)
-                this.normalize();
-            }
-
+        // 巨大数クラス (オフライン対応版)
+        class BigNum {
+            constructor(mag, exp) { this.mag = mag; this.exp = exp; this.normalize(); }
             normalize() {
-                if (this.mag >= 10) {
-                    this.mag = Math.log10(this.mag);
-                    this.exp += 1;
-                }
-                if (this.mag === 0) return;
-                while (this.mag >= 10) { this.mag /= 10; this.exp++; }
-                while (this.mag < 1 && this.mag > 0) { this.mag *= 10; this.exp--; }
+                if (this.mag <= 0) { this.mag = 0; this.exp = 0; return; }
+                let log = Math.log10(this.mag);
+                this.exp += Math.floor(log);
+                this.mag = Math.pow(10, log - Math.floor(log));
             }
-
-            // 2乗の計算
-            pow2() {
-                // (m * 10^e)^2 = m^2 * 10^(2e)
-                this.mag = Math.pow(this.mag, 2);
-                this.exp = this.exp * 2;
-                this.normalize();
+            plus(other) {
+                let diff = this.exp - other.exp;
+                if (diff > 15) return this;
+                if (diff < -15) { this.mag = other.mag; this.exp = other.exp; return this; }
+                this.mag = this.mag + other.mag * Math.pow(10, -diff);
+                this.normalize(); return this;
             }
-
+            times(num) { this.mag *= num; this.normalize(); return this; }
+            pow(num) { this.mag = Math.pow(this.mag, num); this.exp *= num; this.normalize(); return this; }
             toString() {
-                // ee表記の判定 (指数が1億を超えたら)
-                if (this.exp >= 100000000) {
-                    return "ee" + Math.log10(this.exp).toFixed(6);
-                } 
-                // e...e... 表記 (指数が10万を超えたら)
-                if (this.exp >= 100000) {
-                    return "e" + this.exp.toLocaleString();
-                }
-                return "e" + Math.floor(this.exp);
+                if (this.exp >= 100000000) return "ee" + Math.log10(this.exp).toFixed(6);
+                if (this.exp >= 100000) return "e" + Math.floor(this.exp).toLocaleString();
+                if (this.exp >= 6) return this.mag.toFixed(2) + "e" + Math.floor(this.exp);
+                return Math.floor(this.mag * Math.pow(10, this.exp)).toLocaleString();
             }
         }
 
-        // --- ゲームの実行部分 ---
-        let points = new SimpleDecimal(1, 10); // 初期値 e10
-        const displayEl = document.getElementById("display");
-        const btn = document.getElementById("btn");
-
-        function render() {
-            displayEl.innerText = points.toString();
+        // ゲームデータ
+        let points = new BigNum(1, 10);
+        let generators = [];
+        for (let i = 0; i < 8; i++) {
+            generators.push({
+                amount: new BigNum(i === 0 ? 1 : 0, 0),
+                cost: new BigNum(1, Math.pow(i + 1, 2)), // コスト: e1, e4, e9...
+                mult: 1.1 + (i * 0.1) // 上位ほど倍率が高い
+            });
         }
 
-        btn.onclick = function() {
-            points.pow2();
-            render();
-            // ログ出力
-            console.log("計算成功:", points.toString());
-        };
+        // HTML生成
+        const genList = document.getElementById("gen-list");
+        generators.forEach((gen, i) => {
+            const row = document.createElement("div");
+            row.className = "gen-row";
+            row.innerHTML = `
+                <div class="gen-info">Gen ${i+1}: <span id="amt-${i}">0</span></div>
+                <button id="buy-${i}" onclick="buyGen(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button>
+            `;
+            genList.appendChild(row);
+        });
 
-        // 初期描画
-        render();
+        function buyGen(i) {
+            if (points.exp >= generators[i].cost.exp) {
+                // 本来は引き算が必要ですが、インフレゲーなので簡略化
+                generators[i].amount.plus(new BigNum(1, 0));
+                updateUI();
+            }
+        }
+
+        function gameLoop() {
+            // 1. 下位を生産する (Gen 8 -> 7, 7 -> 6 ...)
+            for (let i = 7; i > 0; i--) {
+                let production = new BigNum(generators[i].amount.mag, generators[i].amount.exp).times(generators[i].mult * 0.1);
+                generators[i-1].amount.plus(production);
+            }
+            // 2. Gen 1 が Points を生産する
+            let pProd = new BigNum(generators[0].amount.mag, generators[0].amount.exp).times(1.5 * 0.1);
+            points.plus(pProd);
+            
+            // 3. 強制インフレ（2乗イベント）: ポイントが一定超えたら加速
+            if (points.exp > 100) points.exp *= 1.01; 
+
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById("display").innerText = points.toString();
+            generators.forEach((gen, i) => {
+                document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
+                document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
+                document.getElementById(`buy-${i}`).disabled = points.exp < gen.cost.exp;
+            });
+        }
+
+        setInterval(gameLoop, 100);
     </script>
 </body>
 </html>
