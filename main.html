@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Keyboard Edition</title>
+    <title>Star Idle</title>
     <style>
         body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 20px; }
         #display-container { background: #111; border: 2px solid #0f0; width: 85%; margin: 10px auto; padding: 20px; box-shadow: 0 0 15px #0f04; }
@@ -32,7 +32,7 @@
 
     <div class="gen-list" id="gen-list"></div>
 
-    <div class="save-info">10秒ごとにオートセーブ中... [R]キーで全データ消去</div>
+    <div class="save-info">1000秒ごとにオートセーブ中... [R]キーで全データ消去</div>
 
     <script>
         class BigNum {
@@ -174,7 +174,7 @@
         initUI();
         loadGame();
         setInterval(gameLoop, 100);
-        setInterval(saveGame, 10000);
+        setInterval(saveGame, 1000000);
     </script>
 </body>
 </html>
