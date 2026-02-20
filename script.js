@@ -4,32 +4,49 @@ class BigNum {
         this.exp = isNaN(exp) ? 0 : exp;
         this.normalize();
     }
+
     normalize() {
-        if (this.mag <= 1e-15) {
-            this.mag = 0; this.exp = 0; return;
+        if (this.mag === 0) {
+            this.exp = 0;
+            return;
+        }
+        if (Math.abs(this.mag) <= 1e-15) {
+            this.mag = 0;
+            this.exp = 0;
+            return;
         }
         let log = Math.log10(Math.abs(this.mag));
-        this.exp += Math.floor(log);
-        this.mag = Math.pow(10, log - Math.floor(log));
+        let shift = Math.floor(log);
+        this.exp += shift;
+        this.mag = this.mag / Math.pow(10, shift);
     }
+
     plus(other) {
         let diff = this.exp - other.exp;
         if (diff > 15) return this;
         if (diff < -15) {
-            if(other.mag > 0) { this.mag = other.mag; this.exp = other.exp; }
+            this.mag = other.mag;
+            this.exp = other.exp;
             return this;
         }
         this.mag = this.mag + other.mag * Math.pow(10, -diff);
         this.normalize();
         return this;
     }
+
     minus(other) {
-        if (this.exp > other.exp + 15) return this;
-        this.mag -= other.mag * Math.pow(10, other.exp - this.exp);
+        let diff = this.exp - other.exp;
+        if (diff > 15) return this;
+        if (diff < -15) {
+            this.mag = 0; this.exp = 0;
+            return this;
+        }
+        this.mag -= other.mag * Math.pow(10, -diff);
         if (this.mag < 0) { this.mag = 0; this.exp = 0; }
         this.normalize();
         return this;
     }
+
     times(num) {
         if (num instanceof BigNum) {
             this.mag *= num.mag;
@@ -40,22 +57,26 @@ class BigNum {
         this.normalize();
         return this;
     }
+
     toString() {
-        if (this.exp >= 100000000) return "ee" + Math.log10(this.exp).toFixed(6);
+        if (this.exp >= 1000000) return "ee" + Math.log10(this.exp).toFixed(6);
         if (this.exp >= 3) return this.mag.toFixed(2) + "e" + Math.floor(this.exp).toLocaleString();
         return (this.mag * Math.pow(10, this.exp)).toFixed(2);
     }
+
     gte(other) {
-        return this.exp > other.exp || (this.exp === other.exp && this.mag >= other.mag - 1e-10);
+        if (this.exp !== other.exp) return this.exp > other.exp;
+        return this.mag >= other.mag - 1e-10;
     }
+
     static copy(bn) {
         return new BigNum(bn.mag, bn.exp);
     }
 }
 
 const config = [
-    {base:2,m:2},{base:16,m:4},{base:512,m:8},{base:65536,m:16},
-    {base:3.35e7,m:32},{base:6.8e10,m:64},{base:5.6e14,m:128},{base:1.8e19,m:256}
+    {base: 2, m: 2}, {base: 16, m: 4}, {base: 512, m: 8}, {base: 65536, m: 16},
+    {base: 3.35e7, m: 32}, {base: 6.8e10, m: 64}, {base: 5.6e14, m: 128}, {base: 1.8e19, m: 256}
 ];
 
 let stars, generators, sacrificeMult, permanentPower, lastUpdate = Date.now(), overdrive = false;
@@ -63,7 +84,7 @@ let stars, generators, sacrificeMult, permanentPower, lastUpdate = Date.now(), o
 function initData() {
     stars = new BigNum(1, 1);
     sacrificeMult = new BigNum(1, 0);
-    if (permanentPower === undefined) permanentPower = 1.0;
+    permanentPower = permanentPower || 1.0;
     generators = config.map((c) => ({
         amount: new BigNum(0, 0),
         bought: 0,
@@ -80,13 +101,8 @@ function buy(i) {
         stars.minus(g.cost);
         g.amount.plus(new BigNum(1, 0));
         g.bought++;
-        
-        // コスト増加
         g.cost.times(g.costMult);
-        
-        // 修正：1個買うごとに1.091倍
-        g.prodMult.times(1.091); 
-        
+        g.prodMult.times(1.091);
         flashRow(i);
         return true;
     }
@@ -95,19 +111,20 @@ function buy(i) {
 
 function buyMaxAll() {
     for (let i = 7; i >= 0; i--) {
-        let bought = false;
         while (stars.gte(generators[i].cost)) {
             buy(i);
-            bought = true;
         }
-        if (bought) flashRow(i);
     }
 }
 
+function getSacBonus() {
+    let exp = generators[0].amount.exp;
+    return (exp < 10) ? new BigNum(1, 0) : new BigNum(Math.pow(exp / 10, 2), 0);
+}
+
 function sacrifice() {
-    let bonus = getSacBonus();
     if (generators[0].amount.exp < 10) return;
-    sacrificeMult = bonus;
+    sacrificeMult = getSacBonus();
     for (let i = 0; i < 7; i++) {
         generators[i].amount = new BigNum(0, 0);
         generators[i].bought = 0;
@@ -119,42 +136,17 @@ function sacrifice() {
 }
 
 function getPrestigeGain() {
-    // 星が e30 未満なら 1.0 固定
     if (stars.exp < 30) return 1.0;
-    
-    // 計算式を調整（例: e30で約4.1倍から始まり、緩やかに上昇）
-    // 前回の permanentPower を下回らないように Math.max を使用
-    let gain = Math.pow(stars.exp / 30, 0.5)*4; 
+    let gain = Math.pow(stars.exp / 30, 0.5) * 4;
     return Math.max(permanentPower, gain);
 }
 
 function prestige() {
     let gain = getPrestigeGain();
-    // 現在の倍率より高い数値が得られる場合のみ Prestige 可能にする
-    if (stars.exp < 30 || gain <= permanentPower) return;
-    
+    if (stars.exp < 38 || gain <= permanentPower) return;
     permanentPower = gain;
     initData();
 }
-
-function getSacBonus() {
-    let exp = generators[0].amount.exp;
-    return (exp < 10) ? new BigNum(1,0) : new BigNum(Math.pow(exp / 10, 2), 0);
-}
-
-window.addEventListener("keydown", (e) => {
-    const k = e.key.toLowerCase();
-    if (k >= "1" && k <= "8") buy(parseInt(k)-1);
-    if (k === "m") buyMaxAll();
-    if (k === "s") saveGame(true);
-    if (k === "b") sacrifice();
-    if (k === "p") prestige();
-    if (k === "o") overdrive = true;
-});
-
-window.addEventListener("keyup", (e) => {
-    if (e.key.toLowerCase() === "o") overdrive = false;
-});
 
 function gameLoop() {
     const now = Date.now();
@@ -166,28 +158,27 @@ function gameLoop() {
         document.getElementById("overdrive-text").style.display = "block";
     } else {
         document.getElementById("overdrive-text").style.display = "none";
-        diff = Math.min(diff, 1);
+        diff = Math.min(diff, 1.0);
     }
-let pPower = permanentPower || 1.0;
-for (let i = 7; i > 0; i--) {
-    // 個別のprodMultと、全体のpPowerを分ける
-    let m = BigNum.copy(generators[i].prodMult).times(pPower);
-    if (i === 7) m.times(sacrificeMult);
-    let gain = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(pPower);
-    stars.plus(BigNum.copy(gain).times(diff));
-    updateUI(gain, pPower);
+
+    // 1. ジェネレーター間の生産 (階層構造)
+    for (let i = 7; i > 0; i--) {
+        let p = BigNum.copy(generators[i].amount).times(generators[i].prodMult).times(permanentPower);
+        if (i === 7) p.times(sacrificeMult);
+        generators[i - 1].amount.plus(p.times(diff));
+    }
+
+    // 2. Gen 1による星の生産
+    let gainPerSec = BigNum.copy(generators[0].amount).times(generators[0].prodMult).times(permanentPower);
+    stars.plus(BigNum.copy(gainPerSec).times(diff));
+
+    updateUI(gainPerSec);
 }
 
-function updateUI(gain, pPower) {
-        document.getElementById("display").innerText = stars.toString() + " stars";
-    document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
-    
-    // Prestige倍率とSynergy倍率を合わせた値を表示
-document.getElementById("pow-display").innerText = "Prestige Power: x" + permanentPower.toFixed(3);
-    
+function updateUI(gain) {
     document.getElementById("display").innerText = stars.toString() + " stars";
     document.getElementById("ps-display").innerText = "+" + gain.toString() + "/s";
-    document.getElementById("pow-display").innerText = "Power: x" + pPower.toFixed(3);
+    document.getElementById("pow-display").innerText = "Power: x" + permanentPower.toFixed(3);
 
     let sacB = getSacBonus();
     document.getElementById("sac-bonus-text").innerText = (generators[0].amount.exp < 10) ? "Require e10 Gen 1" : `Next: x${sacB.toString()} to Gen 8`;
@@ -200,79 +191,81 @@ document.getElementById("pow-display").innerText = "Prestige Power: x" + permane
     generators.forEach((gen, i) => {
         document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
         document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
-        
-        // 修正：各Genの現在の倍率を表示 (例: x1.09)
         document.getElementById(`mult-${i}`).innerText = "x" + gen.prodMult.toString();
-        
         document.getElementById(`buy-btn-${i}`).disabled = !stars.gte(gen.cost);
     });
 }
-function flashRow(i) {
-    const el = document.getElementById(`row-${i}`);
-    if(el) {
-        el.classList.add('flash');
-        setTimeout(() => el.classList.remove('flash'), 150);
-    }
-}
-
-function hardReset() {
-    if(confirm("REALLY RESET?")){localStorage.clear(); location.reload();}
-}
 
 function saveGame(show) {
-    const data = { p:stars, sm:sacrificeMult, g:generators, pow:permanentPower, t:Date.now() };
+    const data = { p: stars, sm: sacrificeMult, g: generators, pow: permanentPower, t: Date.now() };
     localStorage.setItem("starSaveUltimate_v3", JSON.stringify(data));
-    if(show){
-        const p=document.getElementById("save-popup");
-        p.style.opacity=1;
-        setTimeout(()=>p.style.opacity=0,1000);
+    if (show) {
+        const p = document.getElementById("save-popup");
+        if(p) { p.style.opacity = 1; setTimeout(() => p.style.opacity = 0, 1000); }
     }
 }
 
 function loadGame() {
-    const d = JSON.parse(localStorage.getItem("starSaveUltimate_v3"));
-    if(!d) return;
+    const saved = localStorage.getItem("starSaveUltimate_v3");
+    if (!saved) return;
     try {
+        const d = JSON.parse(saved);
         stars = new BigNum(d.p.mag, d.p.exp);
         sacrificeMult = new BigNum(d.sm.mag, d.sm.exp);
         permanentPower = d.pow || 1.0;
-        d.g.forEach((g,i) => {
+        d.g.forEach((g, i) => {
             generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
             generators[i].bought = g.bought;
             generators[i].cost = new BigNum(g.cost.mag, g.cost.exp);
             generators[i].prodMult = new BigNum(g.prodMult.mag, g.prodMult.exp);
         });
-    } catch(e) {
-        initData();
+    } catch (e) { console.error("Load failed", e); initData(); }
+}
+
+function flashRow(i) {
+    const el = document.getElementById(`row-${i}`);
+    if (el) {
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 150);
     }
 }
 
-// Background Animation
+// Event Listeners
+window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (k >= "1" && k <= "8") buy(parseInt(k) - 1);
+    if (k === "m") buyMaxAll();
+    if (k === "s") saveGame(true);
+    if (k === "b") sacrifice();
+    if (k === "p") prestige();
+    if (k === "o") overdrive = true;
+});
+window.addEventListener("keyup", (e) => { if (e.key.toLowerCase() === "o") overdrive = false; });
+
+// Canvas Animation
 const canvas = document.getElementById('star-canvas');
 const ctx = canvas.getContext('2d');
-let bgStars = Array.from({length:80}, () => ({x:Math.random(), y:Math.random(), v:Math.random()*0.0005}));
+let bgStars = Array.from({ length: 80 }, () => ({ x: Math.random(), y: Math.random(), v: Math.random() * 0.0005 }));
 
 function draw() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle='#fff';
-    bgStars.forEach(s=>{
-        ctx.fillRect(s.x*canvas.width, s.y*canvas.height, 1, 1);
-        s.y=(s.y+s.v)%1;
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    bgStars.forEach(s => {
+        ctx.fillRect(s.x * canvas.width, s.y * canvas.height, 1, 1);
+        s.y = (s.y + s.v) % 1;
     });
     requestAnimationFrame(draw);
 }
 
-// Start Game
+// Start
 initData();
 loadGame();
 document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => `
     <div class="gen-row" id="row-${i}">
         <div>
-            <span class="key-badge">${i+1}</span>
-            <strong>Gen ${i+1}</strong> <span id="mult-${i}" style="color:#0af; font-size:0.8rem;">x1.00</span><br>
+            <span class="key-badge">${i + 1}</span>
+            <strong>Gen ${i + 1}</strong> <span id="mult-${i}" style="color:#0af; font-size:0.8rem;">x1.00</span><br>
             <small id="amt-${i}">0</small>
         </div>
         <button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">
@@ -280,8 +273,6 @@ document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => 
         </button>
     </div>
 `).join('');
-
 draw();
 setInterval(gameLoop, 50);
-setInterval(()=>saveGame(false), 10000);
-
+setInterval(() => saveGame(false), 10000);
