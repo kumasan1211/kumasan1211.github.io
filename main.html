@@ -1,90 +1,137 @@
-<script>
-    class BigNum {
-        constructor(mag, exp) { this.mag = mag; this.exp = exp; this.normalize(); }
-        normalize() {
-            if (this.mag <= 0) { this.mag = 0; this.exp = 0; return; }
-            let log = Math.log10(this.mag);
-            this.exp += Math.floor(log);
-            this.mag = Math.pow(10, log - Math.floor(log));
-        }
-        plus(other) {
-            let diff = this.exp - other.exp;
-            if (diff > 15) return this;
-            if (diff < -15) { this.mag = other.mag; this.exp = other.exp; return this; }
-            this.mag = this.mag + other.mag * Math.pow(10, -diff);
-            this.normalize(); return this;
-        }
-        // コスト支払い用の簡易引き算
-        minus(other) {
-            if (this.exp > other.exp + 1) { // 桁が離れていれば無視（処理軽減）
-                return this;
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Antimatter Dimensions Clone</title>
+    <style>
+        body { background: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
+        #display { font-size: 2.5rem; margin: 20px; color: #00e5ff; text-shadow: 0 0 10px #00e5ff; }
+        .container { max-width: 800px; margin: 0 auto; background: #111; padding: 20px; border: 1px solid #333; }
+        .dimension-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #222; padding: 5px; }
+        .dim-name { width: 120px; text-align: left; font-weight: bold; }
+        .dim-amount { flex-grow: 1; text-align: right; margin-right: 20px; font-family: monospace; }
+        button { background: #333; color: #fff; border: 1px solid #555; padding: 5px 15px; cursor: pointer; width: 180px; }
+        button:hover:not(:disabled) { background: #444; border-color: #00e5ff; }
+        button:disabled { color: #555; cursor: not-allowed; }
+        .upgrade-bar { margin-top: 20px; display: flex; justify-content: space-around; }
+    </style>
+</head>
+<body>
+
+    <h1>Antimatter Dimensions Sim</h1>
+    <div id="display">10.00 AM</div>
+    <div id="tick-info">Tick Speed: 1000ms</div>
+
+    <div class="container" id="dim-container">
+        <!-- 第1次元〜第8次元がここに並びます -->
+    </div>
+
+    <div class="upgrade-bar">
+        <button id="tick-btn" onclick="buyTickSpeed()">Buy TickSpeed (Cost: e3)</button>
+    </div>
+
+    <script>
+        // 巨大数クラス (簡易版)
+        class ADNumber {
+            constructor(mag, exp) { this.mag = mag; this.exp = exp; this.normalize(); }
+            normalize() {
+                if (this.mag <= 0) { this.mag = 0; this.exp = 0; return; }
+                let log = Math.log10(this.mag);
+                this.exp += Math.floor(log);
+                this.mag = Math.pow(10, log - Math.floor(log));
             }
-            this.mag -= other.mag * Math.pow(10, other.exp - this.exp);
-            this.normalize();
-            return this;
+            plus(other) {
+                let diff = this.exp - other.exp;
+                if (diff > 15) return this;
+                if (diff < -15) { this.mag = other.mag; this.exp = other.exp; return this; }
+                this.mag = this.mag + other.mag * Math.pow(10, -diff);
+                this.normalize(); return this;
+            }
+            times(n) { this.mag *= n; this.normalize(); return this; }
+            toString() {
+                if (this.exp >= 100000000) return "ee" + Math.log10(this.exp).toFixed(4);
+                if (this.exp >= 10000) return "e" + Math.floor(this.exp).toLocaleString();
+                if (this.exp >= 3) return this.mag.toFixed(2) + "e" + Math.floor(this.exp);
+                return (this.mag * Math.pow(10, this.exp)).toFixed(1);
+            }
         }
-        times(num) { this.mag *= num; this.normalize(); return this; }
-        toString() {
-            if (this.exp >= 100000000) return "ee" + Math.log10(this.exp).toFixed(6);
-            if (this.exp >= 100000) return "e" + Math.floor(this.exp).toLocaleString();
-            if (this.exp >= 6) return this.mag.toFixed(2) + "e" + Math.floor(this.exp);
-            return (this.mag * Math.pow(10, this.exp)).toFixed(1).toLocaleString();
+
+        // ゲーム変数
+        let antimatter = new ADNumber(1, 1);
+        let tickSpeed = 1000;
+        let tickCost = new ADNumber(1, 3);
+        let dimensions = [];
+
+        for (let i = 0; i < 8; i++) {
+            dimensions.push({
+                amount: new ADNumber(0, 0),
+                bought: 0,
+                multiplier: new ADNumber(1, 0),
+                cost: new ADNumber(1, Math.pow(i + 1, 2))
+            });
         }
-    }
+        dimensions[0].amount = new ADNumber(1, 0); // 最初は第1次元を1つ持っている
 
-    // --- ここで正しく初期化 ---
-    let points = new BigNum(2, 0); // 「2」という巨大数オブジェクトを作る
-
-    let generators = [];
-    for (let i = 0; i < 8; i++) {
-        generators.push({
-            amount: new BigNum(i === 0 ? 1 : 0, 0),
-            cost: new BigNum(1, Math.pow(i + 1, 1.5)), // 序盤買いやすくするため少しコストを下げました
-            mult: 1.1 + (i * 0.1)
+        // UI生成
+        const container = document.getElementById("dim-container");
+        dimensions.forEach((dim, i) => {
+            container.innerHTML += `
+                <div class="dimension-row">
+                    <div class="dim-name">第 ${i+1} 次元</div>
+                    <div class="dim-amount" id="amt-${i}">0</div>
+                    <button id="buy-${i}" onclick="buyDim(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button>
+                </div>
+            `;
         });
-    }
 
-    const genList = document.getElementById("gen-list");
-    generators.forEach((gen, i) => {
-        const row = document.createElement("div");
-        row.className = "gen-row";
-        row.innerHTML = `
-            <div class="gen-info">Gen ${i+1}: <span id="amt-${i}">0</span></div>
-            <button id="buy-${i}" onclick="buyGen(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button>
-        `;
-        genList.appendChild(row);
-    });
+        function buyDim(i) {
+            if (antimatter.exp >= dimensions[i].cost.exp) {
+                dimensions[i].amount.plus(new ADNumber(1, 0));
+                dimensions[i].bought++;
+                // 10個買うごとに倍率2倍（ADの基本）
+                if (dimensions[i].bought % 10 === 0) dimensions[i].multiplier.times(2);
+                updateUI();
+            }
+        }
 
-    function buyGen(i) {
-        // points.exp が cost.exp 以上なら買える
-        if (points.exp >= generators[i].cost.exp) {
-            points.minus(generators[i].cost); // ちゃんとコストを引く
-            generators[i].amount.plus(new BigNum(1, 0));
+        function buyTickSpeed() {
+            if (antimatter.exp >= tickCost.exp) {
+                tickSpeed *= 0.9; // 10%加速
+                tickCost.exp *= 1.5; // コスト増
+                updateUI();
+            }
+        }
+
+        function gameLoop() {
+            // 上位が下位を生産
+            for (let i = 7; i > 0; i--) {
+                let prod = new ADNumber(dimensions[i].amount.mag, dimensions[i].amount.exp)
+                           .times(dimensions[i].multiplier.mag * 0.1);
+                dimensions[i-1].amount.plus(prod);
+            }
+            // 第1次元が反物質を生産
+            let pProd = new ADNumber(dimensions[0].amount.mag, dimensions[0].amount.exp)
+                        .times(dimensions[0].multiplier.mag * 0.1);
+            antimatter.plus(pProd);
+
+            // 指数爆発のシミュレーション（AD中盤以降の感覚）
+            if (antimatter.exp > 1000) antimatter.exp *= 1.001;
+
             updateUI();
         }
-    }
 
-    function gameLoop() {
-        for (let i = 7; i > 0; i--) {
-            let production = new BigNum(generators[i].amount.mag, generators[i].amount.exp).times(generators[i].mult * 0.1);
-            generators[i-1].amount.plus(production);
+        function updateUI() {
+            document.getElementById("display").innerText = antimatter.toString() + " AM";
+            document.getElementById("tick-info").innerText = "Tick Speed: " + tickSpeed.toFixed(1) + "ms";
+            document.getElementById("tick-btn").innerText = "Buy TickSpeed (Cost: " + tickCost.toString() + ")";
+            dimensions.forEach((dim, i) => {
+                document.getElementById(`amt-${i}`).innerText = dim.amount.toString();
+                document.getElementById(`cost-${i}`).innerText = dim.cost.toString();
+                document.getElementById(`buy-${i}`).disabled = antimatter.exp < dim.cost.exp;
+            });
         }
-        // Gen 1 が Points を生産
-        let pProd = new BigNum(generators[0].amount.mag, generators[0].amount.exp).times(1.5 * 0.1);
-        points.plus(pProd);
-        
-        updateUI();
-    }
 
-    function updateUI() {
-        document.getElementById("display").innerText = points.toString();
-        generators.forEach((gen, i) => {
-            document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
-            document.getElementById(`cost-${i}`).innerText = gen.cost.toString();
-            // ボタンの有効・無効判定
-            document.getElementById(`buy-${i}`).disabled = points.exp < gen.cost.exp;
-        });
-    }
-
-    setInterval(gameLoop, 100);
-</script>
+        setInterval(gameLoop, 100);
+    </script>
+</body>
+</html>
