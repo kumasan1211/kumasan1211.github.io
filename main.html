@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>BreakEternity Game</title>
+    <!-- BreakEternity.jsを読み込む -->
+    <script src="https://cdn.jsdelivr.net"></script>
+    <style>
+        body { background: #111; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding-top: 50px; }
+        #display { font-size: 2.5rem; margin-bottom: 20px; word-wrap: break-word; }
+        button { background: #222; color: #0f0; border: 1px solid #0f0; padding: 15px 30px; cursor: pointer; font-size: 1.2rem; }
+        button:hover { background: #0f0; color: #000; }
+    </style>
+</head>
+<body>
+
+    <div id="display">10</div>
+    <button onclick="prestige()">数値を2乗する (^2)</button>
+
+    <script>
+        // Decimalクラスを使いやすく定義
+        const D = (val) => new Decimal(val);
+
+        // ゲーム内の数値データ（初期値 10）
+        let points = D(10);
+
+        function updateDisplay() {
+            const el = document.getElementById("display");
+            
+            // 指数が 100,000,000 (1e8) を超えたら ee表記にする
+            if (points.exponent >= 100000000) {
+                // log10(log10(points)) で eeの後の数字を出す
+                let eeValue = points.log10().log10().toFixed(3);
+                el.innerText = "ee" + eeValue;
+            } 
+            // 指数が 1,000,000 を超えたら e1.234e6 のような表記にする
+            else if (points.exponent >= 1000000) {
+                el.innerText = "e" + points.log10().format(3);
+            }
+            // それ以外は通常の指数表記
+            else {
+                el.innerText = points.format(2);
+            }
+        }
+
+        function prestige() {
+            // points = points ^ 2
+            points = points.pow(2);
+            updateDisplay();
+        }
+
+        // 初期表示
+        updateDisplay();
+    </script>
+</body>
+</html>
