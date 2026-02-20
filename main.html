@@ -2,43 +2,99 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Star Idle: Full Fixed Edition</title>
+    <title>Star Idle: Advanced</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Segoe UI', monospace; text-align: center; margin: 0; padding: 0; }
+        body { 
+            background: #000; color: #0f0; 
+            font-family: 'Segoe UI', monospace; 
+            text-align: center; margin: 0; padding: 0;
+        }
         #star-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
-        #top-ui { position: sticky; top: 0; background: rgba(0, 5, 15, 0.9); padding: 15px 0; z-index: 100; border-bottom: 1px solid #0f04; backdrop-filter: blur(5px); }
-        #display-container { background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; width: 85%; margin: 0 auto; padding: 15px; box-shadow: 0 0 15px #0f04; }
+        
+        /* 固定ヘッダー */
+        #top-ui { 
+            position: sticky; top: 0; 
+            background: rgba(0, 5, 15, 0.9); padding: 15px 0; 
+            z-index: 100; border-bottom: 1px solid #0f04; 
+            backdrop-filter: blur(5px); 
+        }
+        #display-container { 
+            background: rgba(0, 10, 20, 0.8); border: 2px solid #0f0; 
+            width: 85%; margin: 0 auto; padding: 15px; 
+            box-shadow: 0 0 15px #0f04; 
+        }
         #display { font-size: 3rem; font-weight: bold; }
         #stats-bar { font-size: 1rem; color: #0a0; margin-top: 5px; }
+
+        /* ジェネレーターリスト */
         .gen-list { max-width: 750px; margin: 20px auto; padding: 0 20px 100px; }
-        .gen-row { display: flex; justify-content: space-between; align-items: center; background: rgba(20, 20, 20, 0.9); margin: 8px 0; padding: 12px 20px; border: 1px solid #333; border-radius: 8px; transition: 0.1s; }
-        .gen-row.flash { border-color: #fff; box-shadow: 0 0 15px #fff; transform: scale(1.02); }
+        .gen-row { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: rgba(20, 20, 20, 0.9); margin: 8px 0; padding: 12px 20px; 
+            border: 1px solid #333; border-radius: 8px; 
+        }
+        .gen-row.flash { border-color: #fff; box-shadow: 0 0 15px #fff; transform: scale(1.02); transition: 0.1s; }
+        
+        /* アクションボタン（Gen8の下） */
         .action-area { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        .btn-base { border: none; padding: 12px 30px; cursor: pointer; font-weight: bold; border-radius: 5px; width: 100%; max-width: 400px; transition: 0.2s; }
+        .btn-base { 
+            border: none; padding: 12px 30px; cursor: pointer; 
+            font-weight: bold; border-radius: 5px; width: 100%; 
+            max-width: 400px; transition: 0.2s; 
+        }
+        
         .sac-btn { background: #600; color: #f88; border: 1px solid #f00; }
+        .sac-btn:hover:not(:disabled) { background: #a00; color: #fff; box-shadow: 0 0 15px #f00; }
+        
         .prestige-btn { background: #004; color: #88f; border: 1px solid #00f; }
-        .buy-btn { background: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 15px; cursor: pointer; min-width: 130px; }
+        .prestige-btn:hover:not(:disabled) { background: #008; color: #fff; box-shadow: 0 0 15px #00f; }
+        
+        .buy-btn { 
+            background: #111; color: #0f0; border: 1px solid #0f0; 
+            padding: 8px 15px; cursor: pointer; min-width: 130px; 
+        }
+        .buy-btn:hover:not(:disabled) { background: #0f0; color: #000; }
+        
         .btn-base:disabled, .buy-btn:disabled { background: #222; color: #444; border-color: #333; cursor: not-allowed; }
-        #overdrive-text { color: #f0f; font-weight: bold; display: none; }
+        
+        .key-badge { background: #333; color: #fff; padding: 2px 6px; border: 1px solid #555; margin-right: 8px; font-size: 0.8rem; }
+        #save-popup { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #0f0; color: #000; padding: 5px 20px; font-weight: bold; opacity: 0; transition: 0.5s; z-index: 1000; }
+        #overdrive-text { color: #f0f; font-weight: bold; display: none; margin-top: 5px; }
     </style>
 </head>
 <body>
+
     <canvas id="star-canvas"></canvas>
+    <div id="save-popup">DATA SAVED</div>
+
     <div id="top-ui">
         <div id="display-container">
             <div id="display">0.00 stars</div>
-            <div id="stats-bar"><span id="ps-display">+0.00/s</span> | <span id="pow-display">Power: x1.000</span></div>
+            <div id="stats-bar">
+                <span id="ps-display">+0.00/s</span> | 
+                <span style="color:#aaf" id="pow-display">Power: x1.000</span>
+            </div>
             <div id="overdrive-text">OVERDRIVE ACTIVE (x1000)</div>
         </div>
-        <div style="font-size: 0.75rem; margin-top: 5px; color: #888;">[1-8]:Buy | [M]:Max | [S]:Save | [B]:Sacrifice | [P]:Prestige</div>
+        <div style="color: #888; font-size: 0.75rem; margin-top: 5px;">[1-8]:Buy | [M]:Max | [S]:Save | [B]:Sacrifice | [P]:Prestige | [O]:Overdrive</div>
     </div>
 
     <div class="gen-list">
         <div id="gen-list-render"></div>
+
+        <!-- アクションエリア -->
         <div class="action-area">
-            <button class="btn-base sac-btn" id="sac-btn" onclick="sacrifice()">SACRIFICE [B]<br><small id="sac-bonus-text">Next: x1.000 to Gen 8</small></button>
-            <button class="btn-base prestige-btn" id="prestige-btn" onclick="prestige()">PRESTIGE [P]<br><small id="prestige-info-text">Require e38 stars</small></button>
+            <button class="btn-base sac-btn" id="sac-btn" onclick="sacrifice()">
+                SACRIFICE [B]<br>
+                <small id="sac-bonus">Next: x1.000 to Gen 8</small>
+            </button>
+
+            <button class="btn-base prestige-btn" id="prestige-btn" onclick="prestige()">
+                PRESTIGE [P]<br>
+                <small id="prestige-info">Require e38 stars</small>
+            </button>
         </div>
+
         <button onclick="hardReset()" style="color:#600; background:none; border:1px solid #300; cursor:pointer; margin-top:50px;">HARD RESET</button>
     </div>
 
@@ -89,50 +145,22 @@
                 amount: new BigNum(0, 0), bought: 0,
                 cost: new BigNum(c.base, 0), costMult: new BigNum(c.m, 0), prodMult: new BigNum(1, 0)
             }));
-            generators[0].amount = new BigNum(1, 0);
+            generators[0].amount = new BigNum(1, 0); // 初期Gen1
         }
 
-        function renderGenerators() {
-            const listEl = document.getElementById("gen-list-render");
-            listEl.innerHTML = generators.map((_, i) => `
-                <div class="gen-row" id="row-${i}">
-                    <div><span class="key-badge">${i+1}</span><strong>Gen ${i+1}</strong><br><small id="amt-${i}">0</small></div>
-                    <button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button>
-                </div>
-            `).join('');
-        }
-
-        function buy(i) {
-            let g = generators[i];
-            if (stars.gte(g.cost)) {
-                stars.minus(g.cost); g.amount.plus(new BigNum(1, 0)); g.bought++;
-                g.cost.times(g.costMult); if (g.bought % 10 === 0) g.prodMult.times(2);
-                if (i === 0) flashRow(0);
-                return true;
-            } return false;
-        }
-
-        function buyMaxAll() {
-            for (let i = 7; i >= 0; i--) { let bought = false; while (stars.gte(generators[i].cost)) { buy(i); bought = true; } if (bought) flashRow(i); }
-        }
-
+        // 犠牲：Gen1-7だけ消えてStarは残る
         function sacrifice() {
             let bonus = getSacBonus();
             if (generators[0].amount.exp < 10) return;
             sacrificeMult = bonus;
             for (let i = 0; i < 7; i++) {
-                generators[i].amount = new BigNum(0, 0); generators[i].bought = 0;
-                generators[i].cost = new BigNum(config[i].base, 0); generators[i].prodMult = new BigNum(1, 0);
+                generators[i].amount = new BigNum(0, 0);
+                generators[i].bought = 0;
+                generators[i].cost = new BigNum(config[i].base, 0);
+                generators[i].prodMult = new BigNum(1, 0);
             }
-            generators[0].amount = new BigNum(1, 0);
+            generators[0].amount = new BigNum(1, 0); // キックスタート
             flashRow(7);
-        }
-
-        function prestige() {
-            let gain = getPrestigeGain();
-            if (stars.exp < 38) return;
-            permanentPower = gain;
-            initData();
         }
 
         function getSacBonus() {
@@ -140,26 +168,43 @@
             return (exp < 10) ? new BigNum(1,0) : new BigNum(Math.pow(exp / 10, 2), 0);
         }
 
-        function getPrestigeGain() {
-            return stars.exp < 38 ? 1.0 : Math.pow(stars.exp / 64, 0.063);
+        function prestige() {
+            let gain = stars.exp < 38 ? 1.0 : Math.pow(stars.exp / 64, 0.063);
+            if (stars.exp < 38) return;
+            permanentPower = gain;
+            initData();
+        }
+
+        function buy(i) {
+            let g = generators[i];
+            if (stars.gte(g.cost)) {
+                stars.minus(g.cost); g.amount.plus(new BigNum(1, 0)); g.bought++;
+                g.cost.times(g.costMult); if (g.bought % 10 === 0) g.prodMult.times(2);
+                return true;
+            } return false;
+        }
+
+        function buyMaxAll() {
+            for (let i = 7; i >= 0; i--) { while (stars.gte(generators[i].cost)) buy(i); }
         }
 
         window.addEventListener("keydown", (e) => {
             const k = e.key.toLowerCase();
             if (k >= "1" && k <= "8") buy(parseInt(k)-1);
             if (k === "m") buyMaxAll();
+            if (k === "s") saveGame(true);
             if (k === "b") sacrifice();
             if (k === "p") prestige();
             if (k === "o") overdrive = true;
         });
-        window.addEventListener("keyup", (e) => { if (e.key === "o") overdrive = false; });
+        window.addEventListener("keyup", (e) => { if(e.key.toLowerCase() === "o") overdrive = false; });
 
         function gameLoop() {
             const now = Date.now();
-            let diff = Math.min((now - lastUpdate) / 1000, 1);
+            let diff = (now - lastUpdate) / 1000;
             lastUpdate = now;
             if (overdrive) { diff *= 1000; document.getElementById("overdrive-text").style.display = "block"; }
-            else { document.getElementById("overdrive-text").style.display = "none"; }
+            else { document.getElementById("overdrive-text").style.display = "none"; diff = Math.min(diff, 1); }
 
             let pPower = permanentPower || 1.0;
             for (let i = 7; i > 0; i--) {
@@ -178,12 +223,12 @@
             document.getElementById("pow-display").innerText = "Power: x" + pPower.toFixed(3);
             
             let sacB = getSacBonus();
-            document.getElementById("sac-bonus-text").innerText = `Next: x${sacB.toString()} to Gen 8`;
+            document.getElementById("sac-bonus").innerText = (generators[0].amount.exp < 10) ? "Require e10 Gen 1" : `Next: x${sacB.toString()} to Gen 8`;
             document.getElementById("sac-btn").disabled = (generators[0].amount.exp < 10);
             
-            let pGain = getPrestigeGain();
+            let pGain = (stars.exp < 38) ? 1.0 : Math.pow(stars.exp / 64, 0.063);
             document.getElementById("prestige-btn").disabled = (stars.exp < 38);
-            document.getElementById("prestige-info-text").innerText = (stars.exp < 38) ? "Require e38 stars" : `Next: x${pGain.toFixed(3)} Power`;
+            document.getElementById("prestige-info").innerText = (stars.exp < 38) ? "Require e38 stars" : `Next: x${pGain.toFixed(3)} Power`;
 
             generators.forEach((gen, i) => {
                 document.getElementById(`amt-${i}`).innerText = gen.amount.toString();
@@ -197,20 +242,51 @@
             if(el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 150); }
         }
 
+        // --- システム系 ---
+        function saveGame(show) {
+            const data = { p:stars, sm:sacrificeMult, g:generators, pow:permanentPower };
+            localStorage.setItem("starSaveUltimate", JSON.stringify(data));
+            if(show){ const p=document.getElementById("save-popup"); p.style.opacity=1; setTimeout(()=>p.style.opacity=0,1000); }
+        }
+        function loadGame() {
+            const d = JSON.parse(localStorage.getItem("starSaveUltimate"));
+            if(!d) return;
+            try {
+                stars = new BigNum(d.p.mag, d.p.exp);
+                sacrificeMult = new BigNum(d.sm.mag, d.sm.exp);
+                permanentPower = d.pow || 1.0;
+                d.g.forEach((g,i) => {
+                    generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
+                    generators[i].bought = g.bought;
+                    generators[i].cost = new BigNum(g.cost.mag, g.cost.exp);
+                    generators[i].prodMult = new BigNum(g.prodMult.mag, g.prodMult.exp);
+                });
+            } catch(e) { initData(); }
+        }
         function hardReset() { if(confirm("RESET?")){localStorage.clear(); location.reload();} }
 
-        // 初期化
         initData();
-        renderGenerators();
-        setInterval(gameLoop, 50);
-
-        // 背景Canvas
+        loadGame();
+        document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => `<div class="gen-row" id="row-${i}"><div><span class="key-badge">${i+1}</span><strong>Gen ${i+1}</strong><br><small id="amt-${i}">0</small></div><button class="buy-btn" id="buy-btn-${i}" onclick="buy(${i})">Buy (Cost: <span id="cost-${i}">0</span>)</button></div>`).join('');
+        
+        // 背景
         const canvas = document.getElementById('star-canvas');
         const ctx = canvas.getContext('2d');
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resize(); window.onresize = resize;
-        function draw() { ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; for(let i=0;i<50;i++) ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height,1,1); requestAnimationFrame(draw); }
+        let bgStars = Array.from({length:80}, () => ({x:Math.random(), y:Math.random(), v:Math.random()*0.0005}));
+        function draw() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = '#fff';
+            bgStars.forEach(s => {
+                ctx.fillRect(s.x*canvas.width, s.y*canvas.height, 1, 1);
+                s.y = (s.y + s.v) % 1;
+            });
+            requestAnimationFrame(draw);
+        }
         draw();
+
+        setInterval(gameLoop, 50);
+        setInterval(()=>saveGame(false), 10000);
     </script>
 </body>
 </html>
