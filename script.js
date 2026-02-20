@@ -113,20 +113,28 @@ function sacrifice() {
     flashRow(7);
 }
 
+function getPrestigeGain() {
+    // 星が e38 未満なら 1.0 固定
+    if (stars.exp < 38) return 1.0;
+    
+    // 計算式を調整（例: e38で約1.1倍から始まり、緩やかに上昇）
+    // 前回の permanentPower を下回らないように Math.max を使用
+    let gain = Math.pow(stars.exp / 38, 0.5); 
+    return Math.max(permanentPower, gain);
+}
+
 function prestige() {
     let gain = getPrestigeGain();
-    if (stars.exp < 38) return;
-    permanentPower = Math.max(permanentPower, gain);
+    // 現在の倍率より高い数値が得られる場合のみ Prestige 可能にする
+    if (stars.exp < 38 || gain <= permanentPower) return;
+    
+    permanentPower = gain;
     initData();
 }
 
 function getSacBonus() {
     let exp = generators[0].amount.exp;
     return (exp < 10) ? new BigNum(1,0) : new BigNum(Math.pow(exp / 10, 2), 0);
-}
-
-function getPrestigeGain() {
-    return stars.exp < 38 ? 1.0 : Math.pow(stars.exp / 64, 0.063);
 }
 
 window.addEventListener("keydown", (e) => {
@@ -258,3 +266,4 @@ document.getElementById("gen-list-render").innerHTML = generators.map((_, i) => 
 draw();
 setInterval(gameLoop, 50);
 setInterval(()=>saveGame(false), 10000);
+
