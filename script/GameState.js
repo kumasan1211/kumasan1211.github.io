@@ -23,5 +23,9 @@ function initPlayer(isInfReset = false) {
         costMult: new BigNum(c.m, 0),
         prodMult: new BigNum(1, 0)
     }));
-    player.generators[0].amount = new BigNum(1, 0);
+    player.generators.amount = new BigNum(1, 0);
+}
+
+function save() {
+    localStorage.setItem("star_save", JSON.stringify(player));
 }
