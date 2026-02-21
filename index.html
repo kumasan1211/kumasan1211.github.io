@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Star Idle: Infinity Path</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -10,7 +9,6 @@
     <canvas id="star-canvas"></canvas>
     <div id="save-popup">SAVED</div>
 
-    <!-- 上部固定UI -->
     <header id="top-ui">
         <div id="display-container">
             <div id="display">10.00 stars</div>
@@ -19,39 +17,37 @@
                 <span id="pow-display">Power: x1.00</span> |
                 <span id="ip-display" style="color:#ff0;">IP: 0</span>
             </div>
+            <div id="overdrive-text" style="color:#f0f; display:none;">OVERDRIVE ACTIVE (x1000)</div>
             <nav class="key-guide">[1-8]:Buy | [M]:Max | [R]:Boost | [B]:Sac | [P]:Prestige | [I]:Infinity</nav>
         </div>
     </header>
 
-    <!-- メインコンテンツ -->
     <main class="game-content">
         <section class="action-area">
-            <!-- Infinity Button (e308到達で表示) -->
-            <button id="inf-btn" class="btn-base inf-btn" onclick="infinityReset()" style="display:none;">
+            <!-- Infinity Button -->
+            <button id="inf-btn" class="btn-base" style="background:#330; color:#ff0; border:2px solid #aa0; display:none;" onclick="infinityReset()">
                 <strong>GO INFINITY</strong><br>
-                <small>Reset everything for 1 IP</small>
+                <small>Reset for 1 Infinity Point</small>
             </button>
 
             <!-- Boost Button -->
-            <button id="boost-btn" class="btn-base boost-btn-style" onclick="buyBoost()">
+            <button id="boost-btn" class="btn-base" style="background:#022; color:#0ff; border:1px solid #066;" onclick="buyBoost()">
                 <span class="btn-label">STAR BOOST [R] (Lv <span id="boost-level">0</span>)</span>
                 <small id="boost-info">Cost: 1.00e5</small>
             </button>
 
-            <!-- Sacrifice Button -->
             <button id="sac-btn" class="btn-base sac-btn" onclick="sacrifice()">
                 <span class="btn-label">SACRIFICE [B]</span>
                 <small id="sac-bonus-text">Req: e10 Gen 1</small>
             </button>
             
-            <!-- Prestige Button -->
             <button id="prestige-btn" class="btn-base prestige-btn" onclick="prestige()">
                 <span class="btn-label">PRESTIGE [P]</span>
                 <small id="prestige-info-text">Req: e30 stars</small>
             </button>
         </section>
 
-        <!-- ジェネレーター描画エリア -->
+        <!-- Generators render here -->
         <div id="gen-list-render"></div>
         
         <footer>
@@ -59,11 +55,6 @@
         </footer>
     </main>
 
-   <script src="script/BigNum.js"></script>
-<script src="script/Constants.js"></script>
-<script src="script/GameState.js"></script>
-<script src="script/Core.js"></script>
-<script src="script/UI.js"></script>
-
+    <script src="main.js"></script>
 </body>
 </html>
