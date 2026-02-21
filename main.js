@@ -1,6 +1,4 @@
-/**
- * 1. BigNum Engine
- */
+/* --- BigNum Class --- */
 class BigNum {
     constructor(mag, exp) {
         this.mag = isNaN(mag) ? 0 : mag;
@@ -47,9 +45,7 @@ class BigNum {
     static copy(bn) { return new BigNum(bn.mag, bn.exp); }
 }
 
-/**
- * 2. Constants & Player State
- */
+/* --- Game Data --- */
 const GEN_CONFIG = [
     { base: 2, m: 2 }, { base: 16, m: 4 }, { base: 512, m: 8 }, { base: 65536, m: 16 },
     { base: 3.3e7, m: 32 }, { base: 6.8e10, m: 64 }, { base: 5.6e14, m: 128 }, { base: 1.8e19, m: 256 }
@@ -69,9 +65,7 @@ let player = {
     overdrive: false
 };
 
-/**
- * 3. Initializer & UI Render
- */
+/* --- Functions --- */
 function initPlayer(isInfReset = false) {
     player.stars = new BigNum(1, 1);
     player.sacrificeMult = new BigNum(1, 0);
@@ -105,9 +99,6 @@ function renderGeneratorList() {
         </div>`).join('');
 }
 
-/**
- * 4. Core Logic
- */
 function buyGenerator(i) {
     let g = player.generators[i];
     if (player.stars.gte(g.cost)) {
@@ -119,8 +110,13 @@ function buyGenerator(i) {
     }
 }
 
+function getBoostCost() {
+    // コスト式を統一 (Lv1でe5, Lv2でe7...)
+    return new BigNum(1, 5 + (player.boostLevel * 2));
+}
+
 function buyBoost() {
-    let cost = new BigNum(1, 5 + (player.boostLevel * 2));
+    let cost = getBoostCost();
     if (player.stars.gte(cost)) {
         player.stars.minus(cost);
         player.boostLevel++;
@@ -131,7 +127,7 @@ function buyBoost() {
 
 function prestige() {
     if (player.stars.exp < 30) return;
-    let nextPow = new BigNum(1, (player.stars.exp - 30) * 0.2);
+    let nextPow = new BigNum(1, (player.stars.exp - 30) * 0.1);
     if (nextPow.gte(player.permanentPower)) player.permanentPower = nextPow;
     initPlayer(false);
 }
@@ -140,7 +136,7 @@ function infinityReset() {
     if (player.stars.exp < INF_LIMIT) return;
     player.ip += 1;
     player.hasInf = true;
-    initPlayer(true);
+    initPlayer(true); // Powerも含めて全リセット
     saveGame(true);
 }
 
@@ -156,17 +152,17 @@ function sacrifice() {
     flashEffect(7);
 }
 
-/**
- * 5. Loop & UI
- */
 function gameLoop() {
     let now = Date.now();
     let diff = (now - player.lastUpdate) / 1000;
     player.lastUpdate = now;
     if (player.overdrive) diff *= 1000;
 
+    // オートバイヤー (Infinity後)
     if (player.hasInf) {
-        for (let i = 0; i < 8; i++) if (player.stars.gte(player.generators[i].cost)) buyGenerator(i);
+        for (let i = 0; i < 8; i++) {
+            if (player.stars.gte(player.generators[i].cost)) buyGenerator(i);
+        }
     }
 
     let globalMult = BigNum.copy(player.boostMult).times(player.permanentPower);
@@ -178,7 +174,10 @@ function gameLoop() {
     let gain = BigNum.copy(player.generators[0].amount).times(player.generators[0].prodMult).times(globalMult);
     player.stars.plus(BigNum.copy(gain).times(diff));
 
-    if (player.stars.exp >= INF_LIMIT) player.stars = new BigNum(1.7976, 308);
+    // Infinity キャップ & ボタン表示
+    if (player.stars.exp >= INF_LIMIT) {
+        player.stars = new BigNum(1.7976, 308);
+    }
     updateUI(gain);
 }
 
@@ -188,17 +187,22 @@ function updateUI(gain) {
     document.getElementById("ps-display").innerText = isInf ? "MAXED" : "+" + gain.toString() + "/s";
     document.getElementById("pow-display").innerText = `Power: x${player.permanentPower.toString()}`;
     document.getElementById("ip-display").innerText = `IP: ${player.ip}`;
-    document.getElementById("overdrive-text").style.display = player.overdrive ? "block" : "none";
-    document.getElementById("inf-btn").style.display = isInf ? "block" : "none";
+    
+    // Infinityボタンの表示
+    const infBtn = document.getElementById("inf-btn");
+    if (infBtn) infBtn.style.display = isInf ? "block" : "none";
 
-    let bCost = new BigNum(1, 5 + (player.boostLevel * 2));
+    // Boost UI
+    let bCost = getBoostCost();
     document.getElementById("boost-level").innerText = player.boostLevel;
     document.getElementById("boost-info").innerText = `Cost: ${bCost.toString()}`;
     document.getElementById("boost-btn").disabled = !player.stars.gte(bCost);
 
+    // Sac & Prestige
     document.getElementById("sac-btn").disabled = player.generators[0].amount.exp < 10;
     document.getElementById("prestige-btn").disabled = player.stars.exp < 30;
 
+    // Generators
     player.generators.forEach((g, i) => {
         const amtEl = document.getElementById(`amt-${i}`);
         const costEl = document.getElementById(`cost-${i}`);
@@ -211,49 +215,41 @@ function updateUI(gain) {
     });
 }
 
+/* --- System --- */
+function flashEffect(i) {
+    let id = i === 'boost' ? 'boost-btn' : `row-${i}`;
+    let el = document.getElementById(id);
+    if(el){ el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"), 150); }
+}
+
 function saveGame(show) {
     localStorage.setItem("star_v7_save", JSON.stringify(player));
-    if(show) { let p=document.getElementById("save-popup"); p.style.opacity=1; setTimeout(()=>p.style.opacity=0,1000); }
+    if(show) { 
+        let p = document.getElementById("save-popup");
+        if(p) { p.style.opacity = 1; setTimeout(() => p.style.opacity = 0, 1000); }
+    }
 }
 
 function loadGame() {
     let s = localStorage.getItem("star_v7_save");
     if (!s) return;
-    let d = JSON.parse(s);
-    player.stars = new BigNum(d.stars.mag, d.stars.exp);
-    player.sacrificeMult = new BigNum(d.sacrificeMult.mag, d.sacrificeMult.exp);
-    player.permanentPower = new BigNum(d.permanentPower.mag, d.permanentPower.exp);
-    player.boostLevel = d.boostLevel || 0;
-    player.boostMult = new BigNum(d.boostMult.mag, d.boostMult.exp);
-    player.ip = d.ip || 0;
-    player.hasInf = d.hasInf || false;
-    d.generators.forEach((g, i) => {
-        player.generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
-        player.generators[i].cost = new BigNum(g.cost.mag, g.cost.exp);
-        player.generators[i].prodMult = new BigNum(g.prodMult.mag, g.prodMult.exp);
-    });
+    try {
+        let d = JSON.parse(s);
+        player.stars = new BigNum(d.stars.mag, d.stars.exp);
+        player.sacrificeMult = new BigNum(d.sacrificeMult.mag, d.sacrificeMult.exp);
+        player.permanentPower = new BigNum(d.permanentPower.mag, d.permanentPower.exp);
+        player.boostLevel = d.boostLevel || 0;
+        player.boostMult = new BigNum(d.boostMult.mag, d.boostMult.exp);
+        player.ip = d.ip || 0;
+        player.hasInf = d.hasInf || false;
+        d.generators.forEach((g, i) => {
+            player.generators[i].amount = new BigNum(g.amount.mag, g.amount.exp);
+            player.generators[i].cost = new BigNum(g.cost.mag, g.cost.exp);
+            player.generators[i].prodMult = new BigNum(g.prodMult.mag, g.prodMult.exp);
+        });
+        renderGeneratorList();
+    } catch(e) { console.error("Load failed"); }
 }
-
-function flashEffect(i) {
-    let id = i === 'boost' ? 'boost-btn' : `row-${i}`;
-    let el = document.getElementById(id);
-    if(el){ el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),150); }
-}
-
-function hardReset() { if(confirm("RESET ALL?")){ localStorage.clear(); location.reload(); } }
-
-window.onkeydown = e => {
-    let k = e.key.toLowerCase();
-    if(k >= "1" && k <= "8") buyGenerator(parseInt(k)-1);
-    if(k === "m") { for (let i = 7; i >= 0; i--) while (player.stars.gte(player.generators[i].cost)) buyGenerator(i); }
-    if(k === "r") buyBoost();
-    if(k === "b") sacrifice();
-    if(k === "p") prestige();
-    if(k === "i") infinityReset();
-    if(k === "s") saveGame(true);
-    if(k === "o") player.overdrive = true;
-};
-window.onkeyup = e => { if(e.key.toLowerCase() === "o") player.overdrive = false; };
 
 window.onload = () => {
     initPlayer();
